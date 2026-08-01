@@ -1,0 +1,4 @@
+interface:
+  display_name: "CareerDock"
+  short_description: "CareerDock project engineering rules"
+  default_prompt: "Apply CareerDock project rules and work only on the requested step."
