@@ -64,7 +64,7 @@ const expiringCredentials = [
     type: "자격증",
     expiresAt: addDays(today, 28),
     remainingDays: getDaysUntil(addDays(today, 28), today),
-    detailHref: "/materials/credential-sqld",
+    detailHref: "/materials/credentials/credential-sqld",
   },
   {
     id: "credential-toeic",
@@ -72,7 +72,7 @@ const expiringCredentials = [
     type: "어학",
     expiresAt: addDays(today, 45),
     remainingDays: getDaysUntil(addDays(today, 45), today),
-    detailHref: "/materials/credential-toeic",
+    detailHref: "/materials/credentials/credential-toeic",
   },
 ] satisfies DashboardData["expiringCredentials"];
 
