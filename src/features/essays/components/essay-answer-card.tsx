@@ -79,7 +79,10 @@ export function EssayAnswerCard({ item }: EssayAnswerCardProps) {
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 pt-3">
             <div className="flex flex-wrap items-center gap-3 text-caption text-neutral-600">
               <span className="font-mono text-mono">
-                {item.characterCount.toLocaleString("ko-KR")} / {item.characterLimit.toLocaleString("ko-KR")}자
+                {item.characterCount.toLocaleString("ko-KR")}
+                {item.characterLimit === null
+                  ? "자 · 제한 없음"
+                  : ` / ${item.characterLimit.toLocaleString("ko-KR")}자`}
               </span>
               <span>{dateLabel}</span>
             </div>

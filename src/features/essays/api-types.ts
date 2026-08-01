@@ -27,7 +27,7 @@ export interface EssayLibraryItemDto {
   version: number;
   contentPreview: string;
   characterCount: number;
-  characterLimit: number;
+  characterLimit: number | null;
   submittedAt: string | null;
   updatedAt: string;
 }

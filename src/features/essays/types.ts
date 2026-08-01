@@ -33,7 +33,8 @@ export interface EssayLibraryItem {
   version: number;
   contentPreview: string;
   characterCount: number;
-  characterLimit: number;
+  /** 제한 글자 수가 없는 문항은 null이다. */
+  characterLimit: number | null;
   submittedAt: Date | null;
   updatedAt: Date;
 }
