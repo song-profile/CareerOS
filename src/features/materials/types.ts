@@ -102,5 +102,58 @@ export interface CredentialFormErrors {
 export type CredentialValidityFilter = "전체" | "유효" | "만료" | "영구";
 export type CredentialSortKey = "expiresSoon" | "acquiredDesc" | "nameAsc";
 
+export type MaterialFileType =
+  | "증명사진"
+  | "포트폴리오"
+  | "성적증명서"
+  | "졸업증명서"
+  | "자격증"
+  | "기타";
+
+export type MaterialFileTypeFilter = "전체" | MaterialFileType;
+
+export interface MaterialFile {
+  id: string;
+  fileName: string;
+  type: MaterialFileType;
+  size: number;
+  createdAt: Date;
+  isUsed: boolean;
+  downloadUrl: string;
+}
+
+export type ExternalLinkType =
+  | "GitHub"
+  | "Notion"
+  | "Velog"
+  | "Blog"
+  | "Portfolio"
+  | "LinkedIn"
+  | "기타";
+
+export interface ExternalLink {
+  id: string;
+  type: ExternalLinkType;
+  title: string;
+  url: string;
+  description: string;
+  createdAt: Date;
+}
+
+export interface ExternalLinkFormValues {
+  type: ExternalLinkType;
+  title: string;
+  url: string;
+  description: string;
+}
+
+export interface ExternalLinkFormErrors {
+  type?: string;
+  title?: string;
+  url?: string;
+  description?: string;
+}
+
 export const CREDENTIAL_MEMO_MAX_LENGTH = 1000;
 export const CREDENTIAL_DESCRIPTION_MAX_LENGTH = 500;
+export const EXTERNAL_LINK_DESCRIPTION_MAX_LENGTH = 300;

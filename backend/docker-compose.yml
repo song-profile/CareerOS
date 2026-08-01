@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: careerdock-postgres
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${DB_NAME:-careerdock}
+      POSTGRES_USER: ${DB_USERNAME:-careerdock}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-careerdock_dev_password}
+      TZ: UTC
+    volumes:
+      - careerdock-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-careerdock} -d ${DB_NAME:-careerdock}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  careerdock-postgres-data:

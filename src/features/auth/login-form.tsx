@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type FormEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GoogleLoginButton } from "@/features/auth/google-login-button";
 import { hasFormErrors, type LoginFormErrors, type LoginFormValues, validateLoginForm } from "@/features/auth/validation";
 
 const INITIAL_VALUES: LoginFormValues = {
@@ -57,6 +58,14 @@ export function LoginForm() {
 
   return (
     <form className="grid gap-5" noValidate onSubmit={handleSubmit}>
+      <GoogleLoginButton />
+
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-neutral-200" />
+        <span className="text-caption text-neutral-400">또는</span>
+        <span className="h-px flex-1 bg-neutral-200" />
+      </div>
+
       <div className="grid gap-4">
         <Input
           autoComplete="email"

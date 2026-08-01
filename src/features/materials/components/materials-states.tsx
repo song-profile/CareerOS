@@ -65,6 +65,62 @@ export function CredentialDetailSkeleton() {
   );
 }
 
+export function MaterialFileListSkeleton() {
+  return (
+    <div aria-label="파일 목록을 불러오는 중입니다." className="grid gap-3" role="status">
+      <Card>
+        <CardContent>
+          <div className="grid gap-3">
+            <SkeletonBlock className="h-5 w-1/5" />
+            <SkeletonBlock className="h-10 w-full" />
+            <SkeletonBlock className="h-10 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+      {["a", "b", "c"].map((key) => (
+        <Card key={key}>
+          <CardContent>
+            <div className="grid gap-3">
+              <SkeletonBlock className="h-5 w-2/5" />
+              <SkeletonBlock className="h-4 w-1/3" />
+              <SkeletonBlock className="h-8 w-1/2" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+export function ExternalLinkListSkeleton() {
+  return (
+    <div aria-label="외부 링크를 불러오는 중입니다." className="grid gap-4" role="status">
+      <Card>
+        <CardContent>
+          <div className="grid gap-3">
+            <SkeletonBlock className="h-5 w-1/5" />
+            <SkeletonBlock className="h-10 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {["a", "b", "c"].map((key) => (
+          <Card key={key}>
+            <CardContent>
+              <div className="grid gap-3">
+                <SkeletonBlock className="h-9 w-9" />
+                <SkeletonBlock className="h-5 w-2/3" />
+                <SkeletonBlock className="h-4 w-full" />
+                <SkeletonBlock className="h-8 w-full" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface MaterialsEmptyStateProps {
   title: string;
   description: string;

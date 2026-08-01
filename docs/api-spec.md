@@ -1,0 +1,453 @@
+# CareerDock API Spec Draft
+
+작성일: 2026-08-02
+
+## Base URL
+
+개발 기본값:
+
+```text
+http://localhost:8080
+```
+
+프론트엔드는 `NEXT_PUBLIC_API_BASE_URL` 환경변수로 백엔드 주소를 설정한다.
+
+## 인증 방식
+
+MVP 기준 인증 방식은 Spring Security Session + HttpOnly Cookie이다.
+
+검토한 방식:
+
+- A. Spring Security Session + HttpOnly Cookie
+- B. Access Token을 HttpOnly Cookie에 저장
+- C. Access Token + Refresh Token을 HttpOnly Cookie에 저장
+
+선택: A.
+
+이유:
+
+- 2주 MVP와 단일 웹서비스에는 Refresh Token 회전/재발급 구조가 과하다.
+- 프론트엔드는 Google Access Token, Client Secret, JWT를 직접 다루지 않는다.
+- 인증 상태는 서버 세션과 HttpOnly `JSESSIONID` Cookie로 유지한다.
+- Google OAuth `state` 검증은 Spring Security OAuth2 Client가 담당한다.
+
+프론트엔드는 토큰을 `localStorage`에 저장하지 않는다.
+
+## 공통 오류 응답
+
+성공 응답은 모든 API에서 강제 Wrapper를 사용하지 않는다. REST 리소스 성격에 맞게 객체, 배열, `204 No Content`를 사용할 수 있다.
+
+오류 응답은 공통 구조를 사용한다.
+
+```json
+{
+  "timestamp": "2026-08-02T00:00:00Z",
+  "status": 400,
+  "code": "VALIDATION_ERROR",
+  "message": "입력값을 확인해주세요.",
+  "fieldErrors": {
+    "email": "올바른 이메일 형식이 아닙니다."
+  },
+  "path": "/api/example",
+  "requestId": "optional-request-id"
+}
+```
+
+`requestId`는 요청 헤더 `X-Request-Id`가 제공될 때만 내려간다.
+
+## 오류 코드 원칙
+
+| HTTP Status | code | 의미 |
+|---|---|---|
+| 400 | `BAD_REQUEST` | 잘못된 요청 |
+| 400 | `VALIDATION_ERROR` | Bean Validation 실패 |
+| 401 | `UNAUTHORIZED` | 인증 필요 |
+| 403 | `FORBIDDEN` | 권한 없음 |
+| 404 | `NOT_FOUND` | 데이터 없음 |
+| 409 | `CONFLICT` | 상태 충돌 |
+| 409 | `DUPLICATE_RESOURCE` | 중복 데이터 |
+| 400 | `FILE_ERROR` | 파일 처리 오류 |
+| 500 | `INTERNAL_SERVER_ERROR` | 내부 서버 오류 |
+
+서버 Stack Trace, SQL, DB 구조, 내부 클래스명은 응답에 포함하지 않는다.
+
+## 날짜 형식
+
+- DB 저장 기준 시간대는 UTC를 권장한다.
+- 생성/수정 시각, 일정 시작/종료 시각처럼 정확한 시점이 필요한 값은 `Instant`를 우선 사용한다.
+- 취득일, 만료일처럼 날짜만 필요한 값은 `LocalDate`를 사용한다.
+- 한국 시간 표시는 클라이언트 또는 응답 변환 계층에서 `Asia/Seoul` 기준으로 처리한다.
+- JSON 날짜/시간은 ISO-8601 문자열을 사용한다.
+
+## 사용자 소유 데이터 원칙
+
+- 지원 건, 자소서, 자격증, 파일, 외부 링크, 일정은 인증된 사용자 내부 ID 기준으로 조회한다.
+- 클라이언트에서 전달한 사용자 ID만 신뢰하지 않는다.
+- 목록/상세/수정/삭제는 항상 소유자 범위를 조건에 포함한다.
+- 다른 사용자 데이터에 접근하면 `404` 또는 `403` 중 API 정책에 맞는 응답을 사용한다.
+
+## Health Check
+
+```http
+GET /api/health
+```
+
+응답:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+인증 없이 접근 가능하다.
+
+## Auth API
+
+### Google OAuth 시작
+
+```http
+GET /oauth2/authorization/google
+```
+
+Spring Security가 Google 인증 페이지로 Redirect한다.
+
+### Google OAuth Callback
+
+```http
+GET /login/oauth2/code/google
+```
+
+Spring Security가 Authorization Code를 처리한다. 프론트엔드는 Authorization Code나 Google Access Token을 직접 처리하지 않는다.
+
+### 현재 사용자 조회
+
+```http
+GET /api/auth/me
+```
+
+인증 필요.
+
+응답:
+
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "name": "사용자",
+  "profileImageUrl": null,
+  "provider": "GOOGLE"
+}
+```
+
+### 로그아웃
+
+```http
+POST /api/auth/logout
+```
+
+인증 필요. 세션을 무효화하고 `204 No Content`를 반환한다.
+
+## OAuth Redirect
+
+성공:
+
+```text
+{FRONTEND_URL}/dashboard
+```
+
+실패:
+
+```text
+{FRONTEND_URL}/login?error=oauth_failed
+```
+
+내부 오류 내용, Authorization Code, Access Token, Refresh Token은 Redirect URL에 포함하지 않는다.
+
+## Application API
+
+Company는 MVP에서 사용자별 데이터로 관리한다.
+
+이유:
+
+- 회사별 메모와 링크는 개인 취업 준비 맥락을 포함할 수 있다.
+- 전역 Company 공유는 중복 병합, 표준 회사명, 권한 정책이 필요해 MVP 범위를 넘는다.
+- 한 사용자는 같은 Company 아래 여러 Application을 만들 수 있다.
+
+### 상태 Enum
+
+| API Enum | 프론트 표시 |
+|---|---|
+| `INTERESTED` | 관심 |
+| `WRITING` | 작성중 |
+| `SUBMITTED` | 지원완료 |
+| `DOCUMENT_RESULT` | 서류 |
+| `TEST` | 필기 |
+| `INTERVIEW` | 면접 |
+| `FINAL_ACCEPTED` | 최종합격 |
+| `FINAL_REJECTED` | 불합격 |
+
+### 채용 시기 Enum
+
+| API Enum | 프론트 표시 |
+|---|---|
+| `FIRST_HALF` | 상반기 |
+| `SECOND_HALF` | 하반기 |
+| `ROLLING` | 수시 |
+
+### 목록 조회
+
+```http
+GET /api/applications
+```
+
+Query:
+
+- `status`
+- `company`
+- `position`
+- `recruitmentYear`
+- `season`
+- `keyword`
+- `deadlineFrom`
+- `deadlineTo`
+
+초기 응답은 페이지네이션 없이 배열이다. 기본 정렬은 마감일 오름차순이며 마감일이 없는 항목은 뒤로 보낸다.
+
+### 등록
+
+```http
+POST /api/applications
+```
+
+요청:
+
+```json
+{
+  "companyName": "KB국민은행",
+  "companyHomepageUrl": "https://example.com",
+  "companyMemo": "금융권 관심 회사",
+  "positionName": "IT 개발",
+  "recruitmentTitle": "2026 하반기 IT 개발",
+  "recruitmentYear": 2026,
+  "season": "SECOND_HALF",
+  "postingUrl": "https://example.com/jobs",
+  "applicationStartAt": "2026-08-01T00:00:00Z",
+  "deadlineAt": "2026-08-10T00:00:00Z",
+  "status": "WRITING",
+  "workLocation": "서울",
+  "applicationSiteUrl": "https://example.com/apply",
+  "memo": "자소서 작성 필요"
+}
+```
+
+동일 사용자의 동일 회사명이 이미 있으면 기존 Company를 재사용한다.
+
+### 상세 조회
+
+```http
+GET /api/applications/{id}
+```
+
+응답:
+
+```json
+{
+  "id": 1,
+  "companyId": 1,
+  "companyName": "KB국민은행",
+  "companyHomepageUrl": "https://example.com",
+  "positionName": "IT 개발",
+  "recruitmentTitle": "2026 하반기 IT 개발",
+  "recruitmentYear": 2026,
+  "season": "SECOND_HALF",
+  "postingUrl": "https://example.com/jobs",
+  "applicationStartAt": "2026-08-01T00:00:00Z",
+  "deadlineAt": "2026-08-10T00:00:00Z",
+  "status": "WRITING",
+  "workLocation": "서울",
+  "applicationSiteUrl": "https://example.com/apply",
+  "memo": "자소서 작성 필요",
+  "submittedAt": null,
+  "createdAt": "2026-08-02T00:00:00Z",
+  "updatedAt": "2026-08-02T00:00:00Z",
+  "statusHistories": []
+}
+```
+
+### 수정
+
+```http
+PATCH /api/applications/{id}
+```
+
+상태 변경은 별도 endpoint를 사용한다.
+
+### 상태 변경
+
+```http
+PATCH /api/applications/{id}/status
+```
+
+요청:
+
+```json
+{
+  "status": "SUBMITTED"
+}
+```
+
+현재 상태와 다를 때만 `ApplicationStatusHistory`를 생성한다.
+
+### 삭제
+
+```http
+DELETE /api/applications/{id}
+```
+
+응답:
+
+```http
+204 No Content
+```
+
+모든 조회·수정·삭제는 인증된 사용자 ID 조건을 포함한다. 다른 사용자 데이터는 `404 NOT_FOUND`로 응답한다.
+
+## Essay API
+
+검색 구현은 JPA Specification을 사용한다. 현재 필터 조합은 단순 join 조건으로 충분해서 QueryDSL은 추가하지 않는다.
+
+### 공통 질문 유형
+
+- `MOTIVATION`
+- `GROWTH`
+- `PROBLEM_SOLVING`
+- `COLLABORATION`
+- `CHALLENGE_FAILURE`
+- `JOB_COMPETENCY`
+- `FUTURE_PLAN`
+- `ETHICS_RESPONSIBILITY`
+- `OTHER`
+
+### 답변 상태
+
+- `DRAFT`: 작성본, 수정 가능
+- `SUBMITTED`: 제출본, 수정 불가
+- `IMPROVED`: 제출 이후 개선본, 수정 가능
+
+### 버전 규칙
+
+- 버전 번호는 문항 단위로 증가한다.
+- 답변 생성 시 다음 버전 번호를 서버가 계산한다.
+- 제출본은 `submit-lock` 이후 수정할 수 없다.
+- 제출본 이후 수정은 `POST /api/essay-answers/{id}/versions`로 새 개선본을 만든다.
+- 글자 수는 서버가 `content.length()`로 계산한다. 프론트의 `characterCount`는 신뢰하지 않는다.
+- 제출 잠금은 `EssayAnswer.lockVersion` optimistic lock 기반으로 동시 제출 충돌을 감지할 수 있게 설계한다.
+
+### 자소서 목록 검색
+
+```http
+GET /api/essays
+```
+
+Query:
+
+- `company`
+- `position`
+- `commonType`
+- `experienceTag`
+- `answerStatus`
+- `recruitmentYear`
+- `keyword`
+
+예:
+
+```http
+GET /api/essays?company=은행&position=IT&commonType=PROBLEM_SOLVING&experienceTag=1&answerStatus=SUBMITTED
+```
+
+### 문항
+
+```http
+POST /api/applications/{applicationId}/essay-questions
+GET /api/applications/{applicationId}/essay-questions
+PATCH /api/essay-questions/{id}
+```
+
+요청:
+
+```json
+{
+  "questionOrder": 1,
+  "questionText": "지원동기를 작성하세요.",
+  "characterLimit": 700,
+  "commonQuestionType": "MOTIVATION"
+}
+```
+
+### 답변
+
+```http
+POST /api/essay-questions/{questionId}/answers
+PATCH /api/essay-answers/{id}
+POST /api/essay-answers/{id}/versions
+POST /api/essay-answers/{id}/submit-lock
+GET /api/essay-answers/{id}/versions
+```
+
+요청:
+
+```json
+{
+  "content": "답변 내용"
+}
+```
+
+응답:
+
+```json
+{
+  "id": 1,
+  "questionId": 1,
+  "applicationId": 1,
+  "companyName": "KB국민은행",
+  "positionName": "IT 개발",
+  "questionText": "지원동기를 작성하세요.",
+  "content": "답변 내용",
+  "characterCount": 5,
+  "version": 1,
+  "status": "DRAFT",
+  "submittedAt": null,
+  "createdAt": "2026-08-02T00:00:00Z",
+  "updatedAt": "2026-08-02T00:00:00Z",
+  "experienceTags": []
+}
+```
+
+### 경험 태그
+
+```http
+GET /api/experience-tags
+POST /api/experience-tags
+POST /api/essay-answers/{id}/tags
+DELETE /api/essay-answers/{id}/tags/{tagId}
+```
+
+태그 생성 요청:
+
+```json
+{
+  "name": "LOODI",
+  "description": "프로젝트 경험"
+}
+```
+
+태그 연결 요청:
+
+```json
+{
+  "tagId": 1
+}
+```
+
+답변과 태그는 모두 현재 사용자 소유인지 확인한 뒤 연결한다.

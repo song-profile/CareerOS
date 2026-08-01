@@ -33,9 +33,17 @@ export default async function MaterialsPage() {
     <>
       <PageHeader
         actions={
-          <LinkButton href="/materials/credentials/new" size="sm">
-            자격 등록
-          </LinkButton>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <LinkButton href="/materials/files" size="sm" variant="secondary">
+              파일 보관함
+            </LinkButton>
+            <LinkButton href="/materials/links" size="sm" variant="secondary">
+              외부 링크
+            </LinkButton>
+            <LinkButton href="/materials/credentials/new" size="sm">
+              자격 등록
+            </LinkButton>
+          </div>
         }
         description="지원서를 쓸 때 반복해서 필요한 값을 한곳에서 확인하고 복사하세요."
         title="내 취업자료"
@@ -126,11 +134,15 @@ export default async function MaterialsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <MaterialsEmptyState
-          description="증명사진, 성적증명서, 포트폴리오를 보관하는 영역입니다. 파일 보관함은 아직 준비 중입니다."
+          actionHref="/materials/files"
+          actionLabel="파일 보관함 열기"
+          description="증명사진, 성적증명서, 포트폴리오를 보관하는 영역입니다. 파일 보관함에서 목 데이터를 확인할 수 있습니다."
           title="등록된 파일이 없습니다."
         />
         <MaterialsEmptyState
-          description="GitHub, Notion, 블로그 주소를 모아두는 영역입니다. 링크 관리는 아직 준비 중입니다."
+          actionHref="/materials/links"
+          actionLabel="외부 링크 열기"
+          description="GitHub, Notion, 블로그 주소를 모아두는 영역입니다. 외부 링크 관리에서 목 데이터를 확인할 수 있습니다."
           title="등록된 외부 링크가 없습니다."
         />
       </div>

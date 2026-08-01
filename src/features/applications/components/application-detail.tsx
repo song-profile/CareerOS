@@ -112,6 +112,12 @@ function ApplicationDetailHero({ application }: ApplicationDetailProps) {
             <LinkButton href="/applications" variant="secondary">
               목록으로
             </LinkButton>
+            <LinkButton
+              href={`/calendar/new?applicationId=${application.id}&eventType=CODING_TEST`}
+              variant="secondary"
+            >
+              일정 추가
+            </LinkButton>
             <LinkButton href={`/applications/${application.id}/edit`}>
               수정
             </LinkButton>

@@ -1,8 +1,15 @@
-import { credentialMockData, userProfileMockData } from "@/features/materials/mock-data";
+import {
+  credentialMockData,
+  externalLinkMockData,
+  materialFileMockData,
+  userProfileMockData,
+} from "@/features/materials/mock-data";
 import type {
   Credential,
   CredentialDetail,
   CredentialFormValues,
+  ExternalLink,
+  MaterialFile,
   UserProfile,
 } from "@/features/materials/types";
 
@@ -16,6 +23,8 @@ import type {
  * - getCredentials     -> GET   /api/credentials
  * - getCredential      -> GET   /api/credentials/{id}
  * - saveCredential     -> POST  /api/credentials, PATCH /api/credentials/{id}
+ * - getMaterialFiles   -> GET   /api/material-files (명세 확정 필요)
+ * - getExternalLinks   -> GET   /api/material-links (명세 확정 필요)
  *
  * 자격번호는 민감 정보다. 어떤 함수도 값을 로그로 남기지 않고 오류 메시지에도 넣지 않는다.
  * 서버 응답에서 자격번호를 복호화해 내려줄지, 마스킹된 값만 내려줄지는 백엔드와 합의가 필요하다.
@@ -43,6 +52,14 @@ export async function getCredential(
   }
 
   return { ok: true, value: credential };
+}
+
+export async function getMaterialFiles(): Promise<MaterialsResult<MaterialFile[]>> {
+  return { ok: true, value: materialFileMockData };
+}
+
+export async function getExternalLinks(): Promise<MaterialsResult<ExternalLink[]>> {
+  return { ok: true, value: externalLinkMockData };
 }
 
 /**

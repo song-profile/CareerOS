@@ -1,6 +1,8 @@
 import { addDays } from "@/features/applications/date-utils";
 import type {
   CredentialDetail,
+  ExternalLink,
+  MaterialFile,
   ProfileField,
   UserProfile,
 } from "@/features/materials/types";
@@ -195,5 +197,105 @@ export const credentialMockData: CredentialDetail[] = [
     createdAt: addDays(today, -520),
     updatedAt: addDays(today, -520),
     usageHistories: [],
+  },
+];
+
+export const materialFileMockData: MaterialFile[] = [
+  {
+    id: "file-profile-photo-2026",
+    fileName: "증명사진_2026.jpg",
+    type: "증명사진",
+    size: 842_120,
+    createdAt: addDays(today, -18),
+    isUsed: true,
+    downloadUrl: "#",
+  },
+  {
+    id: "file-backend-portfolio",
+    fileName: "백엔드_포트폴리오.pdf",
+    type: "포트폴리오",
+    size: 5_382_144,
+    createdAt: addDays(today, -12),
+    isUsed: true,
+    downloadUrl: "#",
+  },
+  {
+    id: "file-transcript",
+    fileName: "성적증명서.pdf",
+    type: "성적증명서",
+    size: 1_248_900,
+    createdAt: addDays(today, -42),
+    isUsed: false,
+    downloadUrl: "#",
+  },
+  {
+    id: "file-graduation-certificate",
+    fileName: "졸업예정증명서.pdf",
+    type: "졸업증명서",
+    size: 1_012_340,
+    createdAt: addDays(today, -35),
+    isUsed: false,
+    downloadUrl: "#",
+  },
+  {
+    id: "file-engineer-info",
+    fileName: "정보처리기사_자격증.pdf",
+    type: "자격증",
+    size: 734_820,
+    createdAt: addDays(today, -28),
+    isUsed: true,
+    downloadUrl: "#",
+  },
+  {
+    id: "file-project-reference",
+    fileName: "LOODI_프로젝트_소개서.pdf",
+    type: "기타",
+    size: 2_761_500,
+    createdAt: addDays(today, -8),
+    isUsed: false,
+    downloadUrl: "#",
+  },
+];
+
+export const externalLinkMockData: ExternalLink[] = [
+  {
+    id: "link-github",
+    type: "GitHub",
+    title: "GitHub 프로필",
+    url: "https://github.com/example-career",
+    description: "백엔드 프로젝트와 알고리즘 풀이 저장소를 모아둔 프로필입니다.",
+    createdAt: addDays(today, -120),
+  },
+  {
+    id: "link-notion-portfolio",
+    type: "Notion",
+    title: "Notion 포트폴리오",
+    url: "https://notion.so/example-career-portfolio",
+    description: "프로젝트별 역할, 성과, 회고를 정리한 지원용 포트폴리오입니다.",
+    createdAt: addDays(today, -95),
+  },
+  {
+    id: "link-velog",
+    type: "Velog",
+    title: "기술 블로그",
+    url: "https://velog.io/@example-career",
+    description: "Spring Boot, PostgreSQL, Next.js 학습 기록을 정리합니다.",
+    createdAt: addDays(today, -80),
+  },
+  {
+    id: "link-portfolio-site",
+    type: "Portfolio",
+    title: "개인 포트폴리오 사이트",
+    url: "https://portfolio.example.com",
+    description: "대표 프로젝트와 이력 요약을 빠르게 확인할 수 있는 사이트입니다.",
+    createdAt: addDays(today, -45),
+  },
+  {
+    id: "link-linkedin",
+    type: "LinkedIn",
+    title: "LinkedIn",
+    url: "https://www.linkedin.com/in/example-career",
+    description: "공개 프로필과 경력 요약을 관리합니다.",
+    createdAt: addDays(today, -30),
   },
 ];
