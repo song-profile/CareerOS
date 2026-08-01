@@ -11,3 +11,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .DS_Store
+
+# docs/*.md 에서 생성되는 산출물 (build-html.sh 로 재생성)
+docs/*.html
+docs/*.pdf
