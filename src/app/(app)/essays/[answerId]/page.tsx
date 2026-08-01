@@ -4,6 +4,8 @@ import { cache } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EssayEditor } from "@/features/essays/components/essay-editor";
 import { getEssayAnswer } from "@/features/essays/editor-service";
+import { VersionPanelErrorState } from "@/features/essays/components/version-states";
+import { getEssayVersions } from "@/features/essays/version-service";
 
 /** 같은 요청 안에서 generateMetadata와 페이지가 조회를 공유한다. */
 const loadAnswer = cache(getEssayAnswer);
@@ -38,13 +40,19 @@ export default async function EssayEditorPage({ params }: EssayEditorPageProps) 
     notFound();
   }
 
+  const versionsResult = await getEssayVersions(answerId);
+
   return (
     <>
       <PageHeader
-        description="문항을 확인하면서 답변을 작성하고 임시 저장하거나 제출본으로 잠글 수 있습니다."
+        description="문항을 확인하면서 답변을 작성하고 버전과 태그를 관리할 수 있습니다."
         title="자소서 작성"
       />
-      <EssayEditor answer={answer} />
+      {versionsResult.ok ? (
+        <EssayEditor answer={answer} initialVersions={versionsResult.value} />
+      ) : (
+        <VersionPanelErrorState />
+      )}
     </>
   );
 }

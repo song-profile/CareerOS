@@ -125,11 +125,12 @@ const essayLibrarySeeds: EssayLibrarySeed[] = [
     questionText: "당사를 선택한 기준과 지원 동기를 기술하시오.",
     commonQuestionType: "지원동기",
     experienceTags: ["LOODI"],
-    competencyTags: ["문제 해결", "사용자 관점"],
-    answerStatus: "작성본",
+    competencyTags: ["문제 해결", "안정성"],
+    // 11단계 버전 시나리오: v1 작성본 → v2 제출본 → v3 개선본
+    answerStatus: "개선본",
     version: 3,
     characterLimit: 1000,
-    submittedAt: null,
+    submittedAt: addDays(today, -14),
     updatedAt: addDays(today, -1),
   },
   {
