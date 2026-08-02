@@ -3,12 +3,15 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EssayEditor } from "@/features/essays/components/essay-editor";
-import { getEssayAnswer } from "@/features/essays/editor-service";
 import { VersionPanelErrorState } from "@/features/essays/components/version-states";
-import { getEssayVersions } from "@/features/essays/version-service";
+import {
+  fetchEssayAnswerForCurrentUser,
+  fetchEssayVersionsForCurrentUser,
+  fetchExperienceTagsForCurrentUser,
+} from "@/features/essays/api/server-essay-api";
 
 /** 같은 요청 안에서 generateMetadata와 페이지가 조회를 공유한다. */
-const loadAnswer = cache(getEssayAnswer);
+const loadAnswer = cache(fetchEssayAnswerForCurrentUser);
 
 interface EssayEditorPageProps {
   params: Promise<{
@@ -18,29 +21,32 @@ interface EssayEditorPageProps {
 
 export async function generateMetadata({ params }: EssayEditorPageProps): Promise<Metadata> {
   const { answerId } = await params;
-  const answer = await loadAnswer(answerId);
+  const answerResult = await loadAnswer(answerId);
 
-  if (!answer) {
+  if (!answerResult.ok) {
     return { title: "답변을 찾을 수 없음" };
   }
 
   return {
-    title: `${answer.question.companyName} ${answer.question.positionName} 자소서`,
+    title: `${answerResult.value.question.companyName} ${answerResult.value.question.positionName} 자소서`,
   };
 }
 
 export default async function EssayEditorPage({ params }: EssayEditorPageProps) {
   const { answerId } = await params;
-  const answer = await loadAnswer(answerId);
+  const answerResult = await loadAnswer(answerId);
 
   // notFound()는 not-found.tsx를 렌더링한다.
   // 다만 같은 세그먼트의 loading.tsx가 스트리밍을 시작시키므로 응답 상태는 200으로 남는다.
   // 화면과 복구 링크는 정상 동작하며, 404 상태가 필요해지면 loading.tsx를 제거해야 한다.
-  if (!answer) {
+  if (!answerResult.ok) {
     notFound();
   }
 
-  const versionsResult = await getEssayVersions(answerId);
+  const [versionsResult, tagsResult] = await Promise.all([
+    fetchEssayVersionsForCurrentUser(answerId),
+    fetchExperienceTagsForCurrentUser(),
+  ]);
 
   return (
     <>
@@ -49,7 +55,11 @@ export default async function EssayEditorPage({ params }: EssayEditorPageProps) 
         title="자소서 작성"
       />
       {versionsResult.ok ? (
-        <EssayEditor answer={answer} initialVersions={versionsResult.value} />
+        <EssayEditor
+          answer={answerResult.value}
+          availableExperienceTags={tagsResult.ok ? tagsResult.value.map((tag) => tag.name) : []}
+          initialVersions={versionsResult.value}
+        />
       ) : (
         <VersionPanelErrorState />
       )}

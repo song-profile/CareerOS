@@ -39,6 +39,7 @@ export type EssaySaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 export interface EssayDraftPayload {
   content: string;
   commonQuestionType: CommonQuestionType;
+  question: EssayQuestionDetail;
 }
 
 export interface SubmitLockPayload {

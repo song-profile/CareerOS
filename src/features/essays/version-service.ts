@@ -1,7 +1,15 @@
-import { countCharacters } from "@/features/essays/character-count";
-import { getTagCatalog } from "@/features/essays/tag-catalog";
-import { findVersionById, findVersionHistory } from "@/features/essays/version-mock-data";
-import { getNextVersionNumber } from "@/features/essays/version-utils";
+import {
+  addEssayAnswerTag,
+  createImprovedEssayVersion,
+  fetchEssayVersions,
+  fetchExperienceTags,
+  removeEssayAnswerTag,
+} from "@/features/essays/api/essay-api";
+import {
+  toEssayAnswerVersion,
+  withAnswerGroupId,
+} from "@/features/essays/api/mapper";
+import { ApiClientError } from "@/lib/api/client";
 import type {
   CreateEssayVersionPayload,
   EssayAnswerVersion,
@@ -26,30 +34,33 @@ import type {
  * 자소서 본문은 민감 정보이므로 어떤 함수도 내용을 로그로 남기지 않는다.
  */
 
-const MAX_CREATED_REASON_LENGTH = 100;
-
 export async function getEssayVersions(
   answerGroupId: string,
 ): Promise<EssayVersionResult<EssayAnswerVersion[]>> {
-  const versions = findVersionHistory(answerGroupId);
-
-  if (!versions) {
-    return { ok: false, message: "버전 목록을 찾을 수 없습니다." };
+  try {
+    const versions = await fetchEssayVersions(answerGroupId);
+    return {
+      ok: true,
+      value: versions.map((version) => withAnswerGroupId(toEssayAnswerVersion(version), answerGroupId)),
+    };
+  } catch (error) {
+    return { ok: false, message: getVersionActionErrorMessage(error) };
   }
-
-  return { ok: true, value: versions };
 }
 
 export async function getEssayVersion(
   versionId: string,
 ): Promise<EssayVersionResult<EssayAnswerVersion>> {
-  const version = findVersionById(versionId);
+  const versions = await getEssayVersions(versionId);
 
-  if (!version) {
-    return { ok: false, message: "해당 버전을 찾을 수 없습니다." };
+  if (!versions.ok) {
+    return versions;
   }
 
-  return { ok: true, value: version };
+  const version = versions.value.find((candidate) => candidate.versionId === versionId);
+  return version
+    ? { ok: true, value: version }
+    : { ok: false, message: "해당 버전을 찾을 수 없습니다." };
 }
 
 /**
@@ -69,42 +80,18 @@ export async function createEssayVersion(
     return { ok: false, message: "기준 버전을 찾을 수 없습니다." };
   }
 
-  if (payload.answerStatus === "개선본" && !baseVersion.isLocked) {
-    return { ok: false, message: "개선본은 제출본에서만 만들 수 있습니다." };
-  }
+  try {
+    const created = await createImprovedEssayVersion(baseVersion.versionId, {
+      content: payload.copyContent ? baseVersion.content : "",
+    });
 
-  if (payload.createdReason.length > MAX_CREATED_REASON_LENGTH) {
     return {
-      ok: false,
-      message: `생성 이유는 ${MAX_CREATED_REASON_LENGTH}자를 넘을 수 없습니다.`,
+      ok: true,
+      value: withAnswerGroupId(toEssayAnswerVersion(created), answerGroupId),
     };
+  } catch (error) {
+    return { ok: false, message: getVersionActionErrorMessage(error) };
   }
-
-  const content = payload.copyContent ? baseVersion.content : "";
-  const versionNumber = getNextVersionNumber(currentVersions);
-  const now = new Date();
-
-  return {
-    ok: true,
-    value: {
-      versionId: `${answerGroupId}-v${versionNumber}-${now.getTime()}`,
-      answerGroupId,
-      questionId: baseVersion.questionId,
-      versionNumber,
-      answerStatus: payload.answerStatus,
-      content,
-      characterCount: countCharacters(content),
-      createdAt: now,
-      updatedAt: now,
-      submittedAt: null,
-      parentVersionId: baseVersion.versionId,
-      createdReason: payload.createdReason.trim() || "이유 없음",
-      isLocked: false,
-      // 태그는 버전별 값이므로 기준 버전의 연결을 복사한 뒤 사용자가 조정한다.
-      experienceTags: [...baseVersion.experienceTags],
-      competencyTags: [...baseVersion.competencyTags],
-    },
-  };
 }
 
 export async function updateEssayTags(
@@ -122,32 +109,54 @@ export async function updateEssayTags(
     return { ok: false, message: "제출본의 태그는 변경할 수 없습니다." };
   }
 
-  // 화면에서 이미 막고 있지만 서버가 할 검증을 같은 자리에 남겨 둔다.
-  const unknownTag = [
-    ...payload.experienceTags.filter((tag) => !getTagCatalog("experience").includes(tag)),
-    ...payload.competencyTags.filter((tag) => !getTagCatalog("competency").includes(tag)),
-  ][0];
-
-  if (unknownTag) {
-    return { ok: false, message: `등록되지 않은 태그입니다: ${unknownTag}` };
+  if (payload.competencyTags.length > 0) {
+    return { ok: false, message: "역량 태그 API는 아직 제공되지 않습니다." };
   }
 
-  if (
-    new Set(payload.experienceTags).size !== payload.experienceTags.length ||
-    new Set(payload.competencyTags).size !== payload.competencyTags.length
-  ) {
+  if (new Set(payload.experienceTags).size !== payload.experienceTags.length) {
     return { ok: false, message: "같은 태그를 중복해서 연결할 수 없습니다." };
   }
 
-  return {
-    ok: true,
-    value: {
-      ...version,
-      experienceTags: [...payload.experienceTags],
-      competencyTags: [...payload.competencyTags],
-      updatedAt: new Date(),
-    },
-  };
+  try {
+    const tags = await fetchExperienceTags();
+    const tagIdByName = new Map(tags.map((tag) => [tag.name, tag.id]));
+    const current = new Set(version.experienceTags);
+    const next = new Set(payload.experienceTags);
+
+    for (const tag of current) {
+      if (!next.has(tag)) {
+        const tagId = tagIdByName.get(tag);
+        if (tagId !== undefined) {
+          await removeEssayAnswerTag(version.versionId, String(tagId));
+        }
+      }
+    }
+
+    let updated = version;
+
+    for (const tag of next) {
+      if (!current.has(tag)) {
+        const tagId = tagIdByName.get(tag);
+        if (tagId === undefined) {
+          return { ok: false, message: `등록되지 않은 태그입니다: ${tag}` };
+        }
+        const dto = await addEssayAnswerTag(version.versionId, { tagId });
+        updated = withAnswerGroupId(toEssayAnswerVersion(dto), version.answerGroupId);
+      }
+    }
+
+    return {
+      ok: true,
+      value: {
+        ...updated,
+        experienceTags: [...payload.experienceTags],
+        competencyTags: [],
+        updatedAt: new Date(),
+      },
+    };
+  } catch (error) {
+    return { ok: false, message: getVersionActionErrorMessage(error) };
+  }
 }
 
 export async function compareEssayVersions(
@@ -158,12 +167,24 @@ export async function compareEssayVersions(
     return { ok: false, message: "서로 다른 두 버전을 선택해 주세요." };
   }
 
-  const left = findVersionById(leftVersionId);
-  const right = findVersionById(rightVersionId);
+  const versions = await getEssayVersions(leftVersionId);
 
-  if (!left || !right) {
-    return { ok: false, message: "비교할 버전을 찾을 수 없습니다." };
+  if (!versions.ok) {
+    return versions;
   }
 
-  return { ok: true, value: { left, right } };
+  const left = versions.value.find((version) => version.versionId === leftVersionId);
+  const right = versions.value.find((version) => version.versionId === rightVersionId);
+
+  return left && right
+    ? { ok: true, value: { left, right } }
+    : { ok: false, message: "비교할 버전을 찾을 수 없습니다." };
+}
+
+function getVersionActionErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    return error.message;
+  }
+
+  return "버전 요청을 처리할 수 없습니다.";
 }

@@ -10,6 +10,7 @@ export type ApplicationMaterialType = "증명사진" | "포트폴리오" | "자�
 export interface ApplicationBasicInfo {
   postingUrl: string;
   workLocation: string;
+  applicationStartAt: Date | null;
   memo: string;
 }
 

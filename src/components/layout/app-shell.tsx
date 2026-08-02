@@ -5,12 +5,15 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { LogoutButton } from "@/features/auth/logout-button";
+import type { CurrentUserViewModel } from "@/features/auth/api/dto";
 import { ALL_NAVIGATION_ITEMS, APP_NAVIGATION_ITEMS, SETTINGS_NAVIGATION_ITEM } from "@/lib/constants/navigation";
 import type { NavigationItem } from "@/lib/constants/navigation";
 import { cn } from "@/lib/utils/cn";
 
 interface AppShellProps {
   children: ReactNode;
+  currentUser: CurrentUserViewModel;
 }
 
 function isActivePath(pathname: string, href: string): boolean {
@@ -64,7 +67,30 @@ function NavigationLink({
   );
 }
 
-function Sidebar({ pathname }: { pathname: string }) {
+function UserPanel({ currentUser }: { currentUser: CurrentUserViewModel }) {
+  return (
+    <div className="grid gap-3 rounded-card border border-neutral-200 bg-neutral-50 p-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-primary-600 text-caption font-semibold text-white">
+          {getUserInitials(currentUser.name)}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-body-medium text-neutral-900">{currentUser.name}</p>
+          <p className="truncate text-caption text-neutral-600">{currentUser.email}</p>
+        </div>
+      </div>
+      <LogoutButton />
+    </div>
+  );
+}
+
+function Sidebar({
+  currentUser,
+  pathname,
+}: {
+  currentUser: CurrentUserViewModel;
+  pathname: string;
+}) {
   return (
     <aside className="hidden h-screen w-60 shrink-0 border-r border-neutral-200 bg-neutral-0 lg:sticky lg:top-0 lg:flex lg:flex-col">
       <div className="border-b border-neutral-200 px-5 py-5">
@@ -90,10 +116,7 @@ function Sidebar({ pathname }: { pathname: string }) {
 
       <div className="grid gap-3 border-t border-neutral-200 p-3">
         <NavigationLink item={SETTINGS_NAVIGATION_ITEM} pathname={pathname} />
-        <div className="rounded-card border border-neutral-200 bg-neutral-50 p-3">
-          <p className="text-body-medium text-neutral-900">사용자</p>
-          <p className="text-caption text-neutral-600">로그인 정보 영역</p>
-        </div>
+        <UserPanel currentUser={currentUser} />
       </div>
     </aside>
   );
@@ -104,11 +127,13 @@ function MobileNavigation({
   onClose,
   open,
   pathname,
+  currentUser,
 }: {
   closeButtonRef: React.RefObject<HTMLButtonElement | null>;
   onClose: () => void;
   open: boolean;
   pathname: string;
+  currentUser: CurrentUserViewModel;
 }) {
   if (!open) {
     return null;
@@ -143,17 +168,14 @@ function MobileNavigation({
 
         <div className="grid gap-3 border-t border-neutral-200 p-3">
           <NavigationLink item={SETTINGS_NAVIGATION_ITEM} onNavigate={onClose} pathname={pathname} />
-          <div className="rounded-card border border-neutral-200 bg-neutral-50 p-3">
-            <p className="text-body-medium text-neutral-900">사용자</p>
-            <p className="text-caption text-neutral-600">로그인 정보 영역</p>
-          </div>
+          <UserPanel currentUser={currentUser} />
         </div>
       </div>
     </div>
   );
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, currentUser }: AppShellProps) {
   const pathname = usePathname();
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -183,7 +205,7 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900 lg:flex">
-      <Sidebar pathname={pathname} />
+      <Sidebar currentUser={currentUser} pathname={pathname} />
 
       <div className="min-w-0 flex-1">
         <header className="sticky top-0 z-30 border-b border-neutral-200 bg-neutral-0/95 backdrop-blur">
@@ -204,8 +226,8 @@ export function AppShell({ children }: AppShellProps) {
                 <p className="hidden text-caption text-neutral-600 sm:block">CareerDock workspace</p>
               </div>
             </div>
-            <div className="rounded-control border border-neutral-200 bg-neutral-50 px-3 py-2 text-caption text-neutral-600">
-              사용자
+            <div className="min-w-0 rounded-control border border-neutral-200 bg-neutral-50 px-3 py-2 text-caption text-neutral-600">
+              <span className="block max-w-[180px] truncate">{currentUser.name}</span>
             </div>
           </div>
         </header>
@@ -217,10 +239,21 @@ export function AppShell({ children }: AppShellProps) {
 
       <MobileNavigation
         closeButtonRef={closeButtonRef}
+        currentUser={currentUser}
         onClose={() => setMobileNavigationOpen(false)}
         open={mobileNavigationOpen}
         pathname={pathname}
       />
     </div>
   );
+}
+
+function getUserInitials(name: string): string {
+  const trimmed = name.trim();
+
+  if (!trimmed) {
+    return "U";
+  }
+
+  return trimmed.slice(0, 2).toUpperCase();
 }

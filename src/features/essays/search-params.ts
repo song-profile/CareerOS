@@ -10,6 +10,11 @@ import type {
   EssayLibraryFilters,
   EssaySortOption,
 } from "@/features/essays/types";
+import type { EssayQueryDto } from "@/features/essays/api/dto";
+import {
+  toCommonQuestionTypeDto,
+  toEssayAnswerStatusDto,
+} from "@/features/essays/api/mapper";
 
 /** URL 파라미터 이름. 링크 공유 시 사람이 읽을 수 있도록 짧게 유지한다. */
 const PARAM = {
@@ -90,4 +95,24 @@ export function buildEssaySearchParams(filters: EssayLibraryFilters): URLSearchP
   }
 
   return searchParams;
+}
+
+export function toEssayQueryDto(filters: EssayLibraryFilters): EssayQueryDto {
+  return {
+    keyword: emptyToUndefined(filters.query),
+    company: filters.companies[0],
+    position: filters.positions[0],
+    commonType: filters.questionTypes[0]
+      ? toCommonQuestionTypeDto(filters.questionTypes[0])
+      : undefined,
+    answerStatus: filters.statuses[0]
+      ? toEssayAnswerStatusDto(filters.statuses[0])
+      : undefined,
+    recruitmentYear: filters.years[0],
+  };
+}
+
+function emptyToUndefined(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }

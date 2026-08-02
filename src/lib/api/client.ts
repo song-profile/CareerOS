@@ -3,11 +3,10 @@ import {
   createHttpError,
   createNetworkError,
 } from "@/lib/api/errors";
+import { getApiBaseUrl } from "@/lib/api/env";
 import type { ApiQueryParams } from "@/lib/api/types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-type ApiRequestBody = BodyInit | Record<string, unknown> | unknown[] | null;
+type ApiRequestBody = BodyInit | object | null;
 
 export interface ApiClientOptions extends Omit<RequestInit, "body"> {
   body?: ApiRequestBody;
@@ -17,11 +16,7 @@ export interface ApiClientOptions extends Omit<RequestInit, "body"> {
 export { ApiClientError };
 
 export function createApiUrl(path: string, query?: ApiQueryParams): string {
-  if (!API_BASE_URL) {
-    throw createNetworkError("NEXT_PUBLIC_API_BASE_URL is not configured.");
-  }
-
-  const url = new URL(path, API_BASE_URL);
+  const url = new URL(path, getApiBaseUrl());
 
   if (query) {
     appendQueryParams(url, query);
@@ -75,7 +70,7 @@ export async function apiClient<TResponse>(
     const responseBody = await parseResponseBody(response);
 
     if (!response.ok) {
-      throw createHttpError(response.status, responseBody);
+      throw createHttpError(response.status, responseBody, response.headers);
     }
 
     return responseBody as TResponse;
@@ -84,7 +79,8 @@ export async function apiClient<TResponse>(
       throw error;
     }
 
-    throw createNetworkError("Network request failed.", error);
+    const message = error instanceof Error ? error.message : "Network request failed.";
+    throw createNetworkError(message, error);
   }
 }
 
@@ -121,7 +117,7 @@ function createRequestBody(body: ApiRequestBody | undefined): BodyInit | undefin
   return body;
 }
 
-function shouldSerializeJson(body: ApiRequestBody): body is Record<string, unknown> | unknown[] {
+function shouldSerializeJson(body: ApiRequestBody): body is object {
   return !isBodyInit(body);
 }
 

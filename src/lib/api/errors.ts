@@ -14,11 +14,13 @@ export interface ApiFieldError {
   code?: string;
 }
 
+export type ApiFieldErrors = Record<string, string>;
+
 export interface ApiErrorPayload {
   status?: number;
   code?: string;
   message?: string;
-  fieldErrors?: ApiFieldError[];
+  fieldErrors?: ApiFieldErrors;
   requestId?: string;
   details?: unknown;
 }
@@ -59,8 +61,8 @@ export function createNetworkError(message: string, cause?: unknown) {
   return new ApiClientError("network", message, {}, cause);
 }
 
-export function createHttpError(status: number, responseBody: unknown) {
-  const payload = normalizeErrorPayload(status, responseBody);
+export function createHttpError(status: number, responseBody: unknown, headers?: Headers) {
+  const payload = normalizeErrorPayload(status, responseBody, headers);
   const kind = getHttpErrorKind(status);
   const message = payload.message ?? getDefaultErrorMessage(kind);
 
@@ -110,11 +112,16 @@ function getDefaultErrorMessage(kind: ApiErrorKind): string {
   return messages[kind];
 }
 
-function normalizeErrorPayload(status: number, responseBody: unknown): ApiErrorPayload {
+function normalizeErrorPayload(
+  status: number,
+  responseBody: unknown,
+  headers?: Headers,
+): ApiErrorPayload {
   if (!isObjectRecord(responseBody)) {
     return {
       status,
       message: typeof responseBody === "string" && responseBody ? responseBody : undefined,
+      requestId: headers?.get("X-Request-Id") ?? undefined,
       details: responseBody,
     };
   }
@@ -124,24 +131,34 @@ function normalizeErrorPayload(status: number, responseBody: unknown): ApiErrorP
     code: getStringValue(responseBody.code),
     message: getStringValue(responseBody.message),
     fieldErrors: normalizeFieldErrors(responseBody.fieldErrors),
-    requestId: getStringValue(responseBody.requestId),
+    requestId: getStringValue(responseBody.requestId) ?? headers?.get("X-Request-Id") ?? undefined,
     details: responseBody.details ?? responseBody,
   };
 }
 
-function normalizeFieldErrors(value: unknown): ApiFieldError[] | undefined {
+function normalizeFieldErrors(value: unknown): ApiFieldErrors | undefined {
+  if (isObjectRecord(value)) {
+    const entries = Object.entries(value)
+      .map(([field, message]) => [field, getStringValue(message)] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]));
+
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+  }
+
   if (!Array.isArray(value)) {
     return undefined;
   }
 
-  return value
+  const entries = value
     .filter(isObjectRecord)
     .map((item) => ({
       field: getStringValue(item.field) ?? "",
       message: getStringValue(item.message) ?? "입력값을 확인해 주세요.",
-      code: getStringValue(item.code),
     }))
-    .filter((item) => item.field.length > 0);
+    .filter((item) => item.field.length > 0)
+    .map((item) => [item.field, item.message] as const);
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
 function getStringValue(value: unknown): string | undefined {

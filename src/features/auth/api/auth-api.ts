@@ -1,21 +1,30 @@
+import { apiClient } from "@/lib/api/client";
+import { apiEndpoints } from "@/lib/api/endpoints";
 import type { ApiModuleContract } from "@/lib/api/types";
+import type { CurrentUserDto, CurrentUserViewModel } from "@/features/auth/api/dto";
+import { toCurrentUserViewModel } from "@/features/auth/api/mapper";
+
+export async function getCurrentUser(): Promise<CurrentUserViewModel> {
+  const dto = await apiClient<CurrentUserDto>(apiEndpoints.auth.me);
+  return toCurrentUserViewModel(dto);
+}
+
+export async function logout(): Promise<void> {
+  await apiClient<void>(apiEndpoints.auth.logout, { method: "POST" });
+}
 
 export const authApiContract: ApiModuleContract = {
   moduleName: "authApi",
-  contractStatus: "pending",
+  contractStatus: "confirmed",
   requiredEndpoints: [
-    "Google OAuth 시작",
-    "Google OAuth Callback",
-    "로그아웃",
-    "현재 사용자 조회",
-    "회원가입",
-    "로그인",
-    "비밀번호 찾기 또는 준비 중 정책",
+    "GET /oauth2/authorization/google",
+    "GET /login/oauth2/code/google",
+    "GET /api/auth/me",
+    "POST /api/auth/logout",
   ],
   notes: [
-    "인증 방식은 백엔드 명세가 없어 미확정입니다.",
-    "OAuth 시작 URL은 NEXT_PUBLIC_GOOGLE_OAUTH_START_PATH가 설정된 경우에만 사용합니다.",
-    "HttpOnly Cookie 방식이면 apiClient의 credentials: include를 사용합니다.",
-    "Bearer Token 방식이면 저장 위치와 refresh 흐름 합의 후 구현합니다.",
+    "Spring Security Session + HttpOnly JSESSIONID Cookie를 사용합니다.",
+    "프론트엔드는 Google Access Token, Authorization Code, JWT를 직접 다루지 않습니다.",
+    "apiClient는 credentials: include로 세션 쿠키를 포함합니다.",
   ],
 };

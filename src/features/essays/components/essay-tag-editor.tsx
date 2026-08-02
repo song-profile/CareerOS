@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { TAG_TYPE_LABEL, getTagCatalog, searchTags } from "@/features/essays/tag-catalog";
 import { hasSameTags, toggleTag } from "@/features/essays/version-utils";
 import type {
   EssayAnswerVersion,
@@ -16,16 +15,31 @@ import type {
 /** 목록이 길어져도 화면이 무너지지 않도록 검색 결과를 제한한다. */
 const MAX_VISIBLE_TAGS = 12;
 
+const TAG_TYPE_LABEL: Record<EssayTagType, string> = {
+  experience: "경험 소재",
+  competency: "역량 태그",
+};
+
+function searchTags(catalog: string[], query: string): string[] {
+  const normalized = query.trim().toLowerCase();
+
+  if (!normalized) {
+    return catalog;
+  }
+
+  return catalog.filter((tag) => tag.toLowerCase().includes(normalized));
+}
+
 interface TagGroupProps {
+  catalog: string[];
   type: EssayTagType;
   selected: string[];
   disabled: boolean;
   onToggle: (tag: string) => void;
 }
 
-function TagGroup({ disabled, onToggle, selected, type }: TagGroupProps) {
+function TagGroup({ catalog, disabled, onToggle, selected, type }: TagGroupProps) {
   const [query, setQuery] = useState("");
-  const catalog = getTagCatalog(type);
   const results = useMemo(() => searchTags(catalog, query), [catalog, query]);
   const visible = results.slice(0, MAX_VISIBLE_TAGS);
 
@@ -90,11 +104,12 @@ function TagGroup({ disabled, onToggle, selected, type }: TagGroupProps) {
 }
 
 interface EssayTagEditorProps {
+  availableExperienceTags: string[];
   version: EssayAnswerVersion;
   onSave: (selection: EssayTagSelection) => Promise<{ ok: boolean; message?: string }>;
 }
 
-export function EssayTagEditor({ onSave, version }: EssayTagEditorProps) {
+export function EssayTagEditor({ availableExperienceTags, onSave, version }: EssayTagEditorProps) {
   const [experienceTags, setExperienceTags] = useState(version.experienceTags);
   const [competencyTags, setCompetencyTags] = useState(version.competencyTags);
   const [savedSelection, setSavedSelection] = useState<EssayTagSelection>({
@@ -175,6 +190,7 @@ export function EssayTagEditor({ onSave, version }: EssayTagEditorProps) {
           ) : (
             <>
               <TagGroup
+                catalog={availableExperienceTags}
                 disabled={saving}
                 onToggle={(tag) => setExperienceTags((current) => toggleTag(current, tag))}
                 selected={experienceTags}
@@ -182,6 +198,7 @@ export function EssayTagEditor({ onSave, version }: EssayTagEditorProps) {
               />
 
               <TagGroup
+                catalog={[]}
                 disabled={saving}
                 onToggle={(tag) => setCompetencyTags((current) => toggleTag(current, tag))}
                 selected={competencyTags}

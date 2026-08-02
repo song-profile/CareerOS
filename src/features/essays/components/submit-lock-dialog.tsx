@@ -85,9 +85,7 @@ export function SubmitLockDialog({
                 </dd>
               </div>
             </dl>
-            <p className="text-caption text-neutral-400">
-              현재는 API 연동 전이라 화면 상태만 바뀌며, 새로고침하면 원래 상태로 돌아갑니다.
-            </p>
+            <p className="text-caption text-neutral-400">저장하면 서버에 제출본으로 기록됩니다.</p>
           </div>
         </div>
 

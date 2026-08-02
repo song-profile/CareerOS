@@ -1,5 +1,5 @@
-import { applicationMockData } from "@/features/applications/mock-data";
 import type { ApplicationListItem } from "@/features/applications/types";
+import { calendarApplicationOptionMockData } from "@/features/calendar/application-option-mock-data";
 import { calendarEventMockData } from "@/features/calendar/mock-data";
 import type { CalendarEvent } from "@/features/calendar/types";
 
@@ -26,5 +26,5 @@ export async function getCalendarEvent(
 export async function getCalendarApplications(): Promise<
   CalendarResult<ApplicationListItem[]>
 > {
-  return { ok: true, value: applicationMockData };
+  return { ok: true, value: calendarApplicationOptionMockData };
 }

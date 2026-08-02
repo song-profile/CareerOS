@@ -7,6 +7,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { cn } from "@/lib/utils/cn";
 import { ApplicationDDayChip } from "@/features/applications/components/application-d-day-chip";
 import { ApplicationDeleteDialog } from "@/features/applications/components/application-delete-dialog";
+import { ApplicationStatusUpdateForm } from "@/features/applications/components/application-status-update-form";
 import { ApplicationStatusBadge } from "@/features/applications/components/application-status-badge";
 import { formatDeadline } from "@/features/applications/date-utils";
 import type {
@@ -70,6 +71,10 @@ export function ApplicationDetailView({ application }: ApplicationDetailProps) {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid gap-6">
           <ApplicationBasicInfoSection application={application} />
+          <ApplicationStatusUpdateForm
+            applicationId={application.id}
+            currentStatus={application.status}
+          />
           <ApplicationTimelineSection status={application.status} />
           <ApplicationMaterialsSection application={application} />
           <ApplicationEssaySection application={application} />
@@ -121,7 +126,7 @@ function ApplicationDetailHero({ application }: ApplicationDetailProps) {
             <LinkButton href={`/applications/${application.id}/edit`}>
               수정
             </LinkButton>
-            <ApplicationDeleteDialog companyName={application.companyName} />
+            <ApplicationDeleteDialog applicationId={application.id} companyName={application.companyName} />
           </div>
         </div>
       </CardContent>
@@ -366,7 +371,7 @@ export function ApplicationDetailEmptyState() {
         <div className="grid gap-3">
           <h2 className="text-h2 text-neutral-900">지원 건을 찾을 수 없습니다.</h2>
           <p className="text-body text-neutral-600">
-            목 데이터에 없는 지원 건입니다. 목록에서 다시 선택하세요.
+            삭제되었거나 접근할 수 없는 지원 건입니다. 목록에서 다시 선택하세요.
           </p>
           <LinkButton className="w-full sm:w-fit" href="/applications" variant="secondary">
             지원 목록으로 돌아가기
@@ -401,7 +406,7 @@ export function ApplicationDetailLoadingState() {
   );
 }
 
-export function ApplicationDetailErrorState() {
+export function ApplicationDetailErrorState({ onRetry }: { onRetry?: () => void }) {
   return (
     <Card aria-label="지원 상세 Error State 구조">
       <CardHeader>
@@ -414,8 +419,8 @@ export function ApplicationDetailErrorState() {
         <div className="grid gap-3">
           <p className="text-body-medium text-neutral-900">지원 정보를 불러오지 못했습니다.</p>
           <p className="text-body text-neutral-600">잠시 후 다시 시도하세요. 서버 내부 오류 내용은 표시하지 않습니다.</p>
-          <Button size="sm" variant="secondary">
-            다시 시도 placeholder
+          <Button onClick={onRetry} size="sm" variant="secondary">
+            다시 시도
           </Button>
         </div>
       </CardContent>
