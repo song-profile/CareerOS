@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.context.ActiveProfiles;
@@ -39,6 +40,9 @@ class ApplicationControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -60,10 +64,9 @@ class ApplicationControllerTest {
 
     @BeforeEach
     void setUp() {
-        statusHistoryRepository.deleteAll();
-        applicationRepository.deleteAll();
-        companyRepository.deleteAll();
-        userRepository.deleteAll();
+        // 테스트 클래스가 Postgres 컨테이너 하나를 공유한다. CASCADE는 users를 참조하는
+        // 테이블을 따라가며 비우므로 기능이 늘어도 이 목록을 고칠 필요가 없다.
+        jdbcTemplate.execute("TRUNCATE TABLE users CASCADE");
 
         firstUser = userRepository.save(User.createGoogleUser("subject-1", "first@example.com", "첫 사용자", null));
         secondUser = userRepository.save(User.createGoogleUser("subject-2", "second@example.com", "두 번째 사용자", null));
