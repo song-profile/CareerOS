@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkButton } from "@/components/ui/link-button";
-import { MaterialFileList } from "@/features/materials/components/material-file-list";
-import { MaterialsErrorState } from "@/features/materials/components/materials-states";
+import { LazyMaterialFileList } from "@/features/materials/components/lazy-material-file-list";
+import { MaterialFileListSkeleton, MaterialsErrorState } from "@/features/materials/components/materials-states";
 import { getMaterialFiles } from "@/features/materials/materials-service";
 
 export default async function MaterialFilesPage() {
@@ -20,7 +21,9 @@ export default async function MaterialFilesPage() {
       />
 
       {filesResult.ok ? (
-        <MaterialFileList files={filesResult.value} />
+        <Suspense fallback={<MaterialFileListSkeleton />}>
+          <LazyMaterialFileList files={filesResult.value} />
+        </Suspense>
       ) : (
         <MaterialsErrorState title="파일 목록을 불러올 수 없습니다." />
       )}

@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { LinkButton } from "@/components/ui/link-button";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { Toast } from "@/components/ui/toast";
 import { ApplicationDDayChip } from "@/features/applications/components/application-d-day-chip";
 import { ApplicationEmptyState } from "@/features/applications/components/application-list-states";
 import { ApplicationStatusBadge } from "@/features/applications/components/application-status-badge";
@@ -28,7 +30,7 @@ import type {
   ApplicationStatusFilter,
 } from "@/features/applications/types";
 
-interface ApplicationListProps {
+export interface ApplicationListProps {
   applications: ApplicationListItem[];
   searchState: ApplicationListSearchState;
 }
@@ -70,12 +72,7 @@ export function ApplicationList({ applications, searchState }: ApplicationListPr
   return (
     <div className="grid gap-6">
       {searchState.deleted ? (
-        <div
-          className="fixed bottom-6 left-6 right-6 z-50 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-body-medium text-success-700 shadow-lg sm:left-auto sm:w-[360px]"
-          role="status"
-        >
-          지원 건을 삭제했습니다.
-        </div>
+        <Toast tone="success">지원 건을 삭제했습니다.</Toast>
       ) : null}
 
       <Card>
@@ -152,54 +149,50 @@ export function ApplicationList({ applications, searchState }: ApplicationListPr
 
 function ApplicationTable({ applications }: { applications: ApplicationListItem[] }) {
   return (
-    <Card className="hidden overflow-hidden lg:block">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left">
-          <thead className="border-b border-neutral-200 bg-neutral-50 text-caption text-neutral-600">
-            <tr>
-              <th className="px-4 py-3 font-medium">회사</th>
-              <th className="px-4 py-3 font-medium">직무</th>
-              <th className="px-4 py-3 font-medium">채용시기</th>
-              <th className="px-4 py-3 font-medium">마감일</th>
-              <th className="px-4 py-3 font-medium">D-Day</th>
-              <th className="px-4 py-3 font-medium">현재상태</th>
-              <th className="min-w-44 px-4 py-3 font-medium">완성도</th>
-              <th className="px-4 py-3 font-medium">더보기</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-200">
-            {applications.map((application) => (
-              <tr className="hover:bg-neutral-50" key={application.id}>
-                <td className="px-4 py-4 text-body-medium text-neutral-900">{application.companyName}</td>
-                <td className="px-4 py-4 text-body text-neutral-600">{application.position}</td>
-                <td className="px-4 py-4">
-                  <Badge>
-                    {application.recruitmentYear} {application.season}
-                  </Badge>
-                </td>
-                <td className="px-4 py-4 font-mono text-mono text-neutral-600">
-                  {formatDeadline(application.deadline)}
-                </td>
-                <td className="px-4 py-4">
-                  <ApplicationDDayChip deadline={application.deadline} />
-                </td>
-                <td className="px-4 py-4">
-                  <ApplicationStatusBadge status={application.status} />
-                </td>
-                <td className="px-4 py-4">
-                  <ProgressBar label="지원서 완성도" value={application.progress} />
-                </td>
-                <td className="px-4 py-4">
-                  <LinkButton href={`/applications/${application.id}`} size="sm" variant="secondary">
-                    상세 보기
-                  </LinkButton>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
+    <DataTable
+      columns={[
+        { key: "company", header: "회사" },
+        { key: "position", header: "직무" },
+        { key: "season", header: "채용시기" },
+        { key: "deadline", header: "마감일" },
+        { key: "dday", header: "D-Day" },
+        { key: "status", header: "현재상태" },
+        { key: "progress", header: "완성도", className: "min-w-44" },
+        { key: "detail", header: "더보기" },
+      ]}
+      getRowKey={(application) => application.id}
+      items={applications}
+      renderCell={(application, columnKey) => {
+        switch (columnKey) {
+          case "company":
+            return <span className="text-body-medium text-neutral-900">{application.companyName}</span>;
+          case "position":
+            return <span className="text-body text-neutral-600">{application.position}</span>;
+          case "season":
+            return (
+              <Badge>
+                {application.recruitmentYear} {application.season}
+              </Badge>
+            );
+          case "deadline":
+            return <span className="font-mono text-mono text-neutral-600">{formatDeadline(application.deadline)}</span>;
+          case "dday":
+            return <ApplicationDDayChip deadline={application.deadline} />;
+          case "status":
+            return <ApplicationStatusBadge status={application.status} />;
+          case "progress":
+            return <ProgressBar label="지원서 완성도" value={application.progress} />;
+          case "detail":
+            return (
+              <LinkButton href={`/applications/${application.id}`} size="sm" variant="secondary">
+                상세 보기
+              </LinkButton>
+            );
+          default:
+            return null;
+        }
+      }}
+    />
   );
 }
 

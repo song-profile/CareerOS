@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { copyToClipboard } from "@/components/ui/copy-field";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { LinkButton } from "@/components/ui/link-button";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Toast } from "@/components/ui/toast";
 import { ExternalLinkTypeBadge } from "@/features/materials/components/external-link-type-badge";
 import {
   EXTERNAL_LINK_TYPES,
@@ -24,7 +26,7 @@ import type {
 } from "@/features/materials/types";
 import { EXTERNAL_LINK_DESCRIPTION_MAX_LENGTH } from "@/features/materials/types";
 
-interface ExternalLinkManagerProps {
+export interface ExternalLinkManagerProps {
   links: ExternalLink[];
 }
 
@@ -156,12 +158,7 @@ export function ExternalLinkManager({ links }: ExternalLinkManagerProps) {
       </div>
 
       {notice ? (
-        <div
-          className="fixed bottom-6 left-6 right-6 z-50 rounded-card border border-primary-100 bg-primary-50 px-4 py-3 text-body-medium text-primary-700 shadow-lg sm:left-auto sm:w-[400px]"
-          role="status"
-        >
-          {notice}
-        </div>
+        <Toast widthClassName="sm:w-[400px]">{notice}</Toast>
       ) : null}
 
       {dialogState ? (
@@ -294,25 +291,13 @@ function ExternalLinkDialog({
   }
 
   return (
-    <div
-      aria-labelledby="external-link-dialog-title"
-      aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-neutral-900/40 px-6 py-8"
-      role="dialog"
+    <Dialog
+      className="max-w-lg"
+      description="https URL만 등록할 수 있습니다. 실제 저장 API는 아직 호출하지 않습니다."
+      onClose={onClose}
+      title={mode === "create" ? "새 링크 등록" : "링크 수정"}
     >
-      <form
-        className="grid w-full max-w-lg gap-4 rounded-modal border border-neutral-200 bg-neutral-0 p-5 shadow-lg"
-        onSubmit={handleSubmit}
-      >
-        <div className="grid gap-1">
-          <h2 className="text-h2 text-neutral-900" id="external-link-dialog-title">
-            {mode === "create" ? "새 링크 등록" : "링크 수정"}
-          </h2>
-          <p className="text-body text-neutral-600">
-            https URL만 등록할 수 있습니다. 실제 저장 API는 아직 호출하지 않습니다.
-          </p>
-        </div>
-
+      <form className="grid gap-4" onSubmit={handleSubmit}>
         <Select
           errorMessage={errors.type}
           label="링크 유형"
@@ -357,7 +342,7 @@ function ExternalLinkDialog({
           </Button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }
 

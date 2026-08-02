@@ -27,7 +27,7 @@ import type {
 } from "@/features/calendar/types";
 import { CALENDAR_EVENT_MEMO_MAX_LENGTH } from "@/features/calendar/types";
 
-interface EventFormProps {
+export interface EventFormProps {
   applications: ApplicationListItem[];
   event?: CalendarEvent;
   mode: "create" | "edit";

@@ -1,6 +1,7 @@
+import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
-import { EventForm } from "@/features/calendar/components/event-form";
-import { CalendarEmptyState, CalendarErrorState } from "@/features/calendar/components/calendar-states";
+import { CalendarEmptyState, CalendarErrorState, EventFormSkeleton } from "@/features/calendar/components/calendar-states";
+import { LazyEventForm } from "@/features/calendar/components/lazy-event-form";
 import {
   getCalendarApplications,
   getCalendarEvent,
@@ -37,11 +38,13 @@ export default async function CalendarEditPage({ params }: CalendarEditPageProps
     <>
       <PageHeader description="일정 정보를 수정합니다. 실제 API 저장은 아직 연결하지 않습니다." title="일정 수정" />
       {applicationsResult.ok ? (
-        <EventForm
-          applications={applicationsResult.value}
-          event={eventResult.value}
-          mode="edit"
-        />
+        <Suspense fallback={<EventFormSkeleton />}>
+          <LazyEventForm
+            applications={applicationsResult.value}
+            event={eventResult.value}
+            mode="edit"
+          />
+        </Suspense>
       ) : (
         <CalendarErrorState title="지원 건 목록을 불러올 수 없습니다." />
       )}

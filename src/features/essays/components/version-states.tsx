@@ -1,10 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LinkButton } from "@/components/ui/link-button";
-
-function SkeletonBlock({ className }: { className: string }) {
-  return <div className={`rounded-control bg-neutral-100 ${className}`} />;
-}
+import { SkeletonBlock } from "@/components/ui/skeleton";
+import { StateCard } from "@/components/ui/state-card";
 
 export function VersionPanelSkeleton() {
   return (
@@ -84,41 +81,23 @@ export function VersionPanelErrorState({ onRetry }: { onRetry?: () => void }) {
 
 export function VersionCompareErrorState({ answerGroupId }: { answerGroupId: string }) {
   return (
-    <Card>
-      <CardContent>
-        <div className="grid gap-3">
-          <div className="grid gap-1">
-            <p className="text-body-medium text-neutral-900">비교할 버전을 불러올 수 없습니다.</p>
-            <p className="text-body text-neutral-600">
-              선택한 버전이 없거나 서로 같은 버전입니다. 에디터에서 버전을 다시 선택해 주세요.
-            </p>
-          </div>
-          <LinkButton className="w-full sm:w-fit" href={`/essays/${answerGroupId}`} size="sm">
-            에디터로 돌아가기
-          </LinkButton>
-        </div>
-      </CardContent>
-    </Card>
+    <StateCard
+      actionHref={`/essays/${answerGroupId}`}
+      actionLabel="에디터로 돌아가기"
+      description="선택한 버전이 없거나 서로 같은 버전입니다. 에디터에서 버전을 다시 선택해 주세요."
+      title="비교할 버전을 불러올 수 없습니다."
+    />
   );
 }
 
 /** 비교할 다른 버전이 없는 경우. */
 export function VersionCompareEmptyState({ answerGroupId }: { answerGroupId: string }) {
   return (
-    <Card>
-      <CardContent>
-        <div className="grid gap-3">
-          <div className="grid gap-1">
-            <p className="text-body-medium text-neutral-900">비교할 다른 버전이 없습니다.</p>
-            <p className="text-body text-neutral-600">
-              이 답변에는 버전이 하나뿐입니다. 새 버전을 만들면 두 버전을 나란히 비교할 수 있습니다.
-            </p>
-          </div>
-          <LinkButton className="w-full sm:w-fit" href={`/essays/${answerGroupId}`} size="sm">
-            에디터로 돌아가기
-          </LinkButton>
-        </div>
-      </CardContent>
-    </Card>
+    <StateCard
+      actionHref={`/essays/${answerGroupId}`}
+      actionLabel="에디터로 돌아가기"
+      description="이 답변에는 버전이 하나뿐입니다. 새 버전을 만들면 두 버전을 나란히 비교할 수 있습니다."
+      title="비교할 다른 버전이 없습니다."
+    />
   );
 }

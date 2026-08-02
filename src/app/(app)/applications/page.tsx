@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkButton } from "@/components/ui/link-button";
-import { ApplicationList } from "@/features/applications/components/application-list";
-import { ApplicationErrorState } from "@/features/applications/components/application-list-states";
+import { ApplicationErrorState, ApplicationLoadingState } from "@/features/applications/components/application-list-states";
+import { LazyApplicationList } from "@/features/applications/components/lazy-application-list";
 import { fetchApplicationsForCurrentUser } from "@/features/applications/api/server-application-api";
 import {
   parseApplicationListSearchParams,
@@ -27,7 +28,9 @@ export default async function ApplicationsPage({ searchParams }: ApplicationsPag
         title="지원관리"
       />
       {applicationsResult.ok ? (
-        <ApplicationList applications={applicationsResult.value} searchState={searchState} />
+        <Suspense fallback={<ApplicationLoadingState />}>
+          <LazyApplicationList applications={applicationsResult.value} searchState={searchState} />
+        </Suspense>
       ) : (
         <ApplicationErrorState message={applicationsResult.message} />
       )}

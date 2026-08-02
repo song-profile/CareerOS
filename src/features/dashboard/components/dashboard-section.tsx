@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SkeletonBlock } from "@/components/ui/skeleton";
+import { ErrorStateCard, StateCard } from "@/components/ui/state-card";
 
 interface DashboardSectionProps {
   title: string;
@@ -16,6 +17,7 @@ interface EmptyStateProps {
 interface ErrorStateProps {
   title: string;
   description: string;
+  onRetry?: () => void;
 }
 
 export function DashboardSection({ children, description, title }: DashboardSectionProps) {
@@ -35,34 +37,11 @@ export function DashboardSection({ children, description, title }: DashboardSect
 }
 
 export function DashboardEmptyState({ description, title }: EmptyStateProps) {
-  return (
-    <Card>
-      <CardContent>
-        <div className="grid gap-1">
-          <p className="text-body-medium text-neutral-900">{title}</p>
-          <p className="text-body text-neutral-600">{description}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <StateCard description={description} title={title} />;
 }
 
-export function DashboardErrorState({ description, title }: ErrorStateProps) {
-  return (
-    <Card>
-      <CardContent>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid gap-1">
-            <p className="text-body-medium text-neutral-900">{title}</p>
-            <p className="text-body text-neutral-600">{description}</p>
-          </div>
-          <Button size="sm" variant="secondary">
-            다시 시도
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+export function DashboardErrorState({ description, onRetry, title }: ErrorStateProps) {
+  return <ErrorStateCard message={description} onRetry={onRetry} title={title} />;
 }
 
 export function DashboardSkeletonCard() {
@@ -70,9 +49,9 @@ export function DashboardSkeletonCard() {
     <Card aria-label="데이터를 불러오는 중입니다.">
       <CardContent>
         <div className="grid gap-3">
-          <div className="h-4 w-2/3 rounded-full bg-neutral-100" />
-          <div className="h-3 w-full rounded-full bg-neutral-100" />
-          <div className="h-3 w-5/6 rounded-full bg-neutral-100" />
+          <SkeletonBlock className="h-4 w-2/3 rounded-full" />
+          <SkeletonBlock className="h-3 w-full rounded-full" />
+          <SkeletonBlock className="h-3 w-5/6 rounded-full" />
         </div>
       </CardContent>
     </Card>

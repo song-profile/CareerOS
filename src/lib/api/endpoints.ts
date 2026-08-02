@@ -13,6 +13,22 @@ export const apiEndpoints = {
     status: (id: string | number) => `/api/applications/${id}/status`,
     essayQuestions: (applicationId: string | number) =>
       `/api/applications/${applicationId}/essay-questions`,
+    resources: (applicationId: string | number) => `/api/applications/${applicationId}/resources`,
+    files: (applicationId: string | number) => `/api/applications/${applicationId}/files`,
+    file: (applicationId: string | number, fileId: string | number) =>
+      `/api/applications/${applicationId}/files/${fileId}`,
+    credentials: (applicationId: string | number) =>
+      `/api/applications/${applicationId}/credentials`,
+    credential: (applicationId: string | number, credentialId: string | number) =>
+      `/api/applications/${applicationId}/credentials/${credentialId}`,
+    externalLinks: (applicationId: string | number) =>
+      `/api/applications/${applicationId}/external-links`,
+    externalLink: (applicationId: string | number, linkId: string | number) =>
+      `/api/applications/${applicationId}/external-links/${linkId}`,
+  },
+  calendar: {
+    events: "/api/calendar/events",
+    event: (id: string | number) => `/api/calendar/events/${id}`,
   },
   essays: {
     list: "/api/essays",

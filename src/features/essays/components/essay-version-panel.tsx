@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,8 +33,11 @@ export function EssayVersionPanel({
   selectedVersionId,
   versions,
 }: EssayVersionPanelProps) {
-  const sorted = sortVersionsLatestFirst(versions);
-  const comparePair = getDefaultComparePair(versions);
+  const sorted = useMemo(() => sortVersionsLatestFirst(versions), [versions]);
+  const comparePair = useMemo(() => getDefaultComparePair(versions), [versions]);
+  const parentVersionNumberById = useMemo(() => {
+    return new Map(versions.map((version) => [version.versionId, version.versionNumber]));
+  }, [versions]);
   const compareHref = comparePair
     ? `/essays/${answerGroupId}/compare?left=${encodeURIComponent(comparePair.left.versionId)}&right=${encodeURIComponent(comparePair.right.versionId)}`
     : null;
@@ -51,9 +55,9 @@ export function EssayVersionPanel({
             {sorted.map((version) => {
               const selected = version.versionId === selectedVersionId;
               // 부모가 항상 직전 번호는 아니므로 실제 버전을 찾아서 표시한다.
-              const parentNumber = versions.find(
-                (candidate) => candidate.versionId === version.parentVersionId,
-              )?.versionNumber;
+              const parentNumber = version.parentVersionId
+                ? parentVersionNumberById.get(version.parentVersionId)
+                : undefined;
 
               return (
                 <li key={version.versionId}>

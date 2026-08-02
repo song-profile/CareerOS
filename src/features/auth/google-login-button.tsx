@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { getGoogleOAuthStartUrl } from "@/features/auth/api/oauth-api";
 import { ApiClientError } from "@/lib/api/client";
@@ -8,8 +8,12 @@ import { ApiClientError } from "@/lib/api/client";
 export function GoogleLoginButton() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const googleOAuthStartUrl = getGoogleOAuthStartUrl();
+  const [googleOAuthStartUrl, setGoogleOAuthStartUrl] = useState<string | null>(null);
   const disabled = !googleOAuthStartUrl || loading;
+
+  useEffect(() => {
+    setGoogleOAuthStartUrl(getGoogleOAuthStartUrl());
+  }, []);
 
   function handleGoogleLogin() {
     if (!googleOAuthStartUrl || loading) {

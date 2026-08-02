@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkButton } from "@/components/ui/link-button";
-import { ExternalLinkManager } from "@/features/materials/components/external-link-manager";
-import { MaterialsErrorState } from "@/features/materials/components/materials-states";
+import { LazyExternalLinkManager } from "@/features/materials/components/lazy-external-link-manager";
+import { ExternalLinkListSkeleton, MaterialsErrorState } from "@/features/materials/components/materials-states";
 import { getExternalLinks } from "@/features/materials/materials-service";
 
 export default async function MaterialLinksPage() {
@@ -20,7 +21,9 @@ export default async function MaterialLinksPage() {
       />
 
       {linksResult.ok ? (
-        <ExternalLinkManager links={linksResult.value} />
+        <Suspense fallback={<ExternalLinkListSkeleton />}>
+          <LazyExternalLinkManager links={linksResult.value} />
+        </Suspense>
       ) : (
         <MaterialsErrorState title="외부 링크를 불러올 수 없습니다." />
       )}

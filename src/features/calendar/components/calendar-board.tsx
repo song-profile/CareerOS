@@ -22,7 +22,7 @@ import { EventTypeBadge } from "@/features/calendar/components/event-type-badge"
 import { CalendarEmptyState } from "@/features/calendar/components/calendar-states";
 import type { CalendarEvent } from "@/features/calendar/types";
 
-interface CalendarBoardProps {
+export interface CalendarBoardProps {
   events: CalendarEvent[];
 }
 

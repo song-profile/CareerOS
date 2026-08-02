@@ -33,7 +33,7 @@ const QUESTION_TYPE_OPTIONS = COMMON_QUESTION_TYPES.map((type) => ({
   value: type,
 }));
 
-interface EssayEditorProps {
+export interface EssayEditorProps {
   answer: EssayAnswerDetail;
   availableExperienceTags: string[];
   initialVersions: EssayAnswerVersion[];

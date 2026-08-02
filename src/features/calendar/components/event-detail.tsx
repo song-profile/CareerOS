@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { LinkButton } from "@/components/ui/link-button";
 import {
   formatEventDateTime,
@@ -148,35 +149,14 @@ function DeleteEventDialog({
 }) {
   const [notice, setNotice] = useState("");
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
   return (
-    <div
-      aria-labelledby="calendar-delete-title"
-      aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center bg-neutral-900/40 px-6"
-      role="dialog"
-    >
-      <div className="grid w-full max-w-md gap-4 rounded-modal border border-neutral-200 bg-neutral-0 p-5 shadow-lg">
-        <div className="grid gap-2">
-          <h2 className="text-h2 text-neutral-900" id="calendar-delete-title">
-            일정 삭제
-          </h2>
-          <p className="break-words text-body text-neutral-600">
-            {eventTitle} 일정을 삭제하면 복구할 수 없습니다. 이번 단계에서는 실제 데이터가
-            삭제되지 않습니다.
-          </p>
-        </div>
-        {notice ? <p className="text-body-medium text-primary-700">{notice}</p> : null}
+    <Dialog
+      description={
+        <p className="break-words">
+          {eventTitle} 일정을 삭제하면 복구할 수 없습니다. 이번 단계에서는 실제 데이터가 삭제되지 않습니다.
+        </p>
+      }
+      footer={
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button onClick={onClose} variant="secondary">
             취소
@@ -188,8 +168,12 @@ function DeleteEventDialog({
             삭제 확인
           </Button>
         </div>
-      </div>
-    </div>
+      }
+      onClose={onClose}
+      title="일정 삭제"
+    >
+        {notice ? <p className="text-body-medium text-primary-700">{notice}</p> : null}
+    </Dialog>
   );
 }
 

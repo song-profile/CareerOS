@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ESSAY_ANSWER_STATUS_VARIANT } from "@/features/essays/constants";
 import type {
@@ -27,8 +28,6 @@ export function CreateVersionDialog({
   open,
   saving,
 }: CreateVersionDialogProps) {
-  const titleId = useId();
-  const descriptionId = useId();
   const reasonRef = useRef<HTMLInputElement>(null);
   const [createdReason, setCreatedReason] = useState("");
   const [copyContent, setCopyContent] = useState(true);
@@ -44,60 +43,52 @@ export function CreateVersionDialog({
     setCreatedReason("");
     setCopyContent(true);
     reasonRef.current?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onCancel();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel, open]);
-
-  if (!open) {
-    return null;
-  }
+  }, [open]);
 
   const reasonTooLong = createdReason.length > MAX_REASON_LENGTH;
 
   return (
-    <div
-      aria-describedby={descriptionId}
-      aria-labelledby={titleId}
-      aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center bg-neutral-900/40 px-6"
-      role="dialog"
-    >
-      <div className="grid w-full max-w-md gap-4 rounded-modal border border-neutral-200 bg-neutral-0 p-5 shadow-lg">
+    <Dialog
+      description={
         <div className="grid gap-2">
-          <h2 className="text-h2 text-neutral-900" id={titleId}>
-            새 {nextStatus} 만들기
-          </h2>
-          <div className="grid gap-2 text-body text-neutral-600" id={descriptionId}>
-            <p>
-              기준 버전은 그대로 보존되고 새 버전이 추가됩니다. 제출본을 직접 수정하지 않습니다.
-            </p>
-            <div className="grid gap-1 rounded-card border border-neutral-200 bg-neutral-50 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span>기준 버전</span>
-                <span className="flex items-center gap-1.5">
-                  <span className="font-mono text-mono text-neutral-900">
-                    v{baseVersion.versionNumber}
-                  </span>
-                  <Badge variant={ESSAY_ANSWER_STATUS_VARIANT[baseVersion.answerStatus]}>
-                    {baseVersion.answerStatus}
-                  </Badge>
+          <p>기준 버전은 그대로 보존되고 새 버전이 추가됩니다. 제출본을 직접 수정하지 않습니다.</p>
+          <div className="grid gap-1 rounded-card border border-neutral-200 bg-neutral-50 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>기준 버전</span>
+              <span className="flex items-center gap-1.5">
+                <span className="font-mono text-mono text-neutral-900">
+                  v{baseVersion.versionNumber}
                 </span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>만들 상태</span>
-                <span className="text-neutral-900">{nextStatus}</span>
-              </div>
+                <Badge variant={ESSAY_ANSWER_STATUS_VARIANT[baseVersion.answerStatus]}>
+                  {baseVersion.answerStatus}
+                </Badge>
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>만들 상태</span>
+              <span className="text-neutral-900">{nextStatus}</span>
             </div>
           </div>
         </div>
+      }
+      footer={
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button disabled={saving} onClick={onCancel} variant="secondary">
+            취소
+          </Button>
+          <Button
+            disabled={reasonTooLong}
+            loading={saving}
+            onClick={() => onConfirm({ copyContent, createdReason })}
+          >
+            {nextStatus} 만들기
+          </Button>
+        </div>
+      }
+      onClose={onCancel}
+      open={open}
+      title={`새 ${nextStatus} 만들기`}
+    >
 
         <Input
           ref={reasonRef}
@@ -127,20 +118,6 @@ export function CreateVersionDialog({
         <p className="text-caption text-neutral-400">
           새 버전 번호와 상태는 서버가 결정합니다.
         </p>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button disabled={saving} onClick={onCancel} variant="secondary">
-            취소
-          </Button>
-          <Button
-            disabled={reasonTooLong}
-            loading={saving}
-            onClick={() => onConfirm({ copyContent, createdReason })}
-          >
-            {nextStatus} 만들기
-          </Button>
-        </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

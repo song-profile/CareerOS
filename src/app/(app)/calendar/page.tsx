@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkButton } from "@/components/ui/link-button";
-import { CalendarBoard } from "@/features/calendar/components/calendar-board";
-import { CalendarErrorState } from "@/features/calendar/components/calendar-states";
+import { CalendarErrorState, CalendarSkeleton } from "@/features/calendar/components/calendar-states";
+import { LazyCalendarBoard } from "@/features/calendar/components/lazy-calendar-board";
 import { getCalendarEvents } from "@/features/calendar/calendar-service";
 
 export default async function CalendarPage() {
@@ -16,7 +17,9 @@ export default async function CalendarPage() {
       />
 
       {eventsResult.ok ? (
-        <CalendarBoard events={eventsResult.value} />
+        <Suspense fallback={<CalendarSkeleton />}>
+          <LazyCalendarBoard events={eventsResult.value} />
+        </Suspense>
       ) : (
         <CalendarErrorState title="일정 목록을 불러올 수 없습니다." />
       )}
