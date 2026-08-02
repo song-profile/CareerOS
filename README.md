@@ -13,6 +13,9 @@ NEXT_PUBLIC_GOOGLE_OAUTH_START_PATH=/oauth2/authorization/google
 
 Do not commit `.env.local` or real secrets.
 
+The frontend API client uses Spring Security Session cookies, so requests are sent with
+`credentials: "include"`. Do not store Google tokens or JWTs in browser storage.
+
 ## Backend
 
 Spring Boot backend skeleton is under `backend/`.

@@ -5,8 +5,10 @@ import {
   VersionCompareEmptyState,
   VersionCompareErrorState,
 } from "@/features/essays/components/version-states";
-import { getEssayAnswer } from "@/features/essays/editor-service";
-import { getEssayVersions } from "@/features/essays/version-service";
+import {
+  fetchEssayAnswerForCurrentUser,
+  fetchEssayVersionsForCurrentUser,
+} from "@/features/essays/api/server-essay-api";
 import { getDefaultComparePair } from "@/features/essays/version-utils";
 
 interface ComparePageProps {
@@ -19,11 +21,13 @@ export default async function EssayVersionComparePage({
   searchParams,
 }: ComparePageProps) {
   const { answerId } = await params;
-  const answer = await getEssayAnswer(answerId);
+  const answerResult = await fetchEssayAnswerForCurrentUser(answerId);
 
-  if (!answer) {
+  if (!answerResult.ok) {
     notFound();
   }
+
+  const answer = answerResult.value;
 
   const header = (
     <PageHeader
@@ -32,7 +36,7 @@ export default async function EssayVersionComparePage({
     />
   );
 
-  const versionsResult = await getEssayVersions(answerId);
+  const versionsResult = await fetchEssayVersionsForCurrentUser(answerId);
 
   if (!versionsResult.ok) {
     return (

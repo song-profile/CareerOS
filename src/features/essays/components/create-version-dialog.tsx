@@ -125,8 +125,7 @@ export function CreateVersionDialog({
         </label>
 
         <p className="text-caption text-neutral-400">
-          현재는 API 연동 전이라 새 버전이 화면에만 추가되며, 새로고침하면 사라집니다. 실제 버전
-          번호는 서버가 결정합니다.
+          새 버전 번호와 상태는 서버가 결정합니다.
         </p>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">

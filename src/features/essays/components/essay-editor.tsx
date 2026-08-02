@@ -35,10 +35,11 @@ const QUESTION_TYPE_OPTIONS = COMMON_QUESTION_TYPES.map((type) => ({
 
 interface EssayEditorProps {
   answer: EssayAnswerDetail;
+  availableExperienceTags: string[];
   initialVersions: EssayAnswerVersion[];
 }
 
-export function EssayEditor({ answer, initialVersions }: EssayEditorProps) {
+export function EssayEditor({ answer, availableExperienceTags, initialVersions }: EssayEditorProps) {
   const router = useRouter();
   const questionTextId = useId();
   const counterId = useId();
@@ -110,6 +111,7 @@ export function EssayEditor({ answer, initialVersions }: EssayEditorProps) {
     const result = await saveEssayDraft(answer.answerId, {
       content,
       commonQuestionType: questionType,
+      question: answer.question,
     });
 
     if (!result.ok) {
@@ -135,7 +137,7 @@ export function EssayEditor({ answer, initialVersions }: EssayEditorProps) {
           : version,
       ),
     );
-  }, [answer.answerId, content, questionType, readOnly, saving, selectedVersion.versionId]);
+  }, [answer.answerId, answer.question, content, questionType, readOnly, saving, selectedVersion.versionId]);
 
   // 저장되지 않은 변경이 있을 때만 새로고침·탭 닫기를 경고한다.
   useEffect(() => {
@@ -383,7 +385,11 @@ export function EssayEditor({ answer, initialVersions }: EssayEditorProps) {
           </CardContent>
         </Card>
 
-        <EssayTagEditor onSave={handleSaveTags} version={selectedVersion} />
+        <EssayTagEditor
+          availableExperienceTags={availableExperienceTags}
+          onSave={handleSaveTags}
+          version={selectedVersion}
+        />
       </div>
 
       <SubmitLockDialog

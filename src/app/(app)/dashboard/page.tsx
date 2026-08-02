@@ -9,10 +9,13 @@ import { DashboardSummary } from "@/features/dashboard/components/dashboard-summ
 import { ExpiringCredentials } from "@/features/dashboard/components/expiring-credentials";
 import { RecentResources } from "@/features/dashboard/components/recent-resources";
 import { UpcomingEvents } from "@/features/dashboard/components/upcoming-events";
+import { getCurrentUserFromSession } from "@/features/auth/api/server-auth";
 import { dashboardMockData } from "@/features/dashboard/mock-data";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
   const dashboardData = dashboardMockData;
+  const authState = await getCurrentUserFromSession();
+  const currentUserName = authState.status === "authenticated" ? authState.user.name : "사용자";
 
   return (
     <>
@@ -25,7 +28,7 @@ export default function DashboardPage() {
             <LinkButton href="/applications/new">지원 등록</LinkButton>
           </>
         }
-        description="마감, 일정, 작성 중인 지원서를 빠르게 확인하세요."
+        description={`${currentUserName}님, 마감, 일정, 작성 중인 지원서를 빠르게 확인하세요.`}
         title="대시보드"
       />
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,22 +19,30 @@ import {
   toApplicationSavePayload,
   validateApplicationForm,
 } from "@/features/applications/form-validation";
+import {
+  createApplication,
+  updateApplication,
+} from "@/features/applications/api/application-api";
+import { ApiClientError } from "@/lib/api/client";
 
 interface ApplicationFormProps {
+  applicationId?: string;
   mode: "create" | "edit";
   initialValues: ApplicationFormValues;
 }
 
 const successMessage = {
-  create: "지원 건 등록 API 연동 전입니다. 입력 내용은 저장되지 않았습니다.",
-  edit: "지원 건 수정 API 연동 전입니다. 입력 내용은 저장되지 않았습니다.",
+  create: "지원 건을 등록했습니다.",
+  edit: "지원 건을 수정했습니다.",
 };
 
-export function ApplicationForm({ initialValues, mode }: ApplicationFormProps) {
+export function ApplicationForm({ applicationId, initialValues, mode }: ApplicationFormProps) {
+  const router = useRouter();
   const [values, setValues] = useState<ApplicationFormValues>(initialValues);
   const [errors, setErrors] = useState<ApplicationFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [toastTone, setToastTone] = useState<"success" | "error">("success");
   const companyNameRef = useRef<HTMLInputElement>(null);
   const positionRef = useRef<HTMLInputElement>(null);
   const recruitmentYearRef = useRef<HTMLInputElement>(null);
@@ -74,6 +83,7 @@ export function ApplicationForm({ initialValues, mode }: ApplicationFormProps) {
     }
 
     setToastMessage("");
+    setToastTone("success");
 
     const nextErrors = validateApplicationForm(values);
     setErrors(nextErrors);
@@ -84,9 +94,23 @@ export function ApplicationForm({ initialValues, mode }: ApplicationFormProps) {
     }
 
     setSubmitting(true);
-    toApplicationSavePayload(values);
-    setSubmitting(false);
-    setToastMessage(successMessage[mode]);
+
+    try {
+      const payload = toApplicationSavePayload(values);
+      const savedApplication =
+        mode === "create"
+          ? await createApplication(payload)
+          : await updateApplication(applicationId ?? "", payload);
+
+      setToastTone("success");
+      setToastMessage(successMessage[mode]);
+      router.push(`/applications/${savedApplication.id}`);
+      router.refresh();
+    } catch (error) {
+      setToastTone("error");
+      setToastMessage(getApplicationSaveErrorMessage(error));
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -207,7 +231,11 @@ export function ApplicationForm({ initialValues, mode }: ApplicationFormProps) {
 
       {toastMessage ? (
         <div
-          className="fixed bottom-6 left-6 right-6 z-50 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-body-medium text-success-700 shadow-lg sm:left-auto sm:w-[360px]"
+          className={
+            toastTone === "success"
+              ? "fixed bottom-6 left-6 right-6 z-50 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-body-medium text-success-700 shadow-lg sm:left-auto sm:w-[360px]"
+              : "fixed bottom-6 left-6 right-6 z-50 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-body-medium text-danger-700 shadow-lg sm:left-auto sm:w-[360px]"
+          }
           role="status"
         >
           {toastMessage}
@@ -215,4 +243,16 @@ export function ApplicationForm({ initialValues, mode }: ApplicationFormProps) {
       ) : null}
     </>
   );
+}
+
+function getApplicationSaveErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    if (error.kind === "validation") {
+      return "입력값을 확인해 주세요.";
+    }
+
+    return error.message;
+  }
+
+  return "지원 건을 저장할 수 없습니다. 잠시 후 다시 시도해 주세요.";
 }

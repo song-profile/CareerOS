@@ -1,17 +1,79 @@
+import { apiClient } from "@/lib/api/client";
+import { apiEndpoints } from "@/lib/api/endpoints";
 import type { ApiModuleContract } from "@/lib/api/types";
+import type {
+  Credential,
+  CredentialDetail,
+  CredentialFormValues,
+} from "@/features/materials/types";
+import type { CredentialDto, CredentialNumberDto, CredentialTypeDto } from "@/features/materials/api/dto";
+import {
+  toCredentialDetailViewModel,
+  toCredentialRequestDto,
+  toCredentialViewModel,
+} from "@/features/materials/api/mapper";
+
+export interface CredentialQuery {
+  type?: CredentialTypeDto;
+  expiringInDays?: number;
+}
+
+export async function fetchCredentials(query?: CredentialQuery): Promise<Credential[]> {
+  const dtos = await apiClient<CredentialDto[]>(apiEndpoints.credentials.list, { query });
+  return dtos.map(toCredentialViewModel);
+}
+
+export async function fetchCredential(id: string): Promise<CredentialDetail> {
+  const dto = await apiClient<CredentialDto>(apiEndpoints.credentials.detail(id));
+  return toCredentialDetailViewModel(dto);
+}
+
+export async function createCredential(
+  values: CredentialFormValues,
+  fileAssetId: number | null = null,
+): Promise<CredentialDetail> {
+  const dto = await apiClient<CredentialDto>(apiEndpoints.credentials.list, {
+    method: "POST",
+    body: toCredentialRequestDto(values, fileAssetId),
+  });
+  return toCredentialDetailViewModel(dto);
+}
+
+export async function updateCredential(
+  id: string,
+  values: CredentialFormValues,
+  fileAssetId: number | null = null,
+): Promise<CredentialDetail> {
+  const dto = await apiClient<CredentialDto>(apiEndpoints.credentials.detail(id), {
+    method: "PATCH",
+    body: toCredentialRequestDto(values, fileAssetId),
+  });
+  return toCredentialDetailViewModel(dto);
+}
+
+export async function deleteCredential(id: string): Promise<void> {
+  await apiClient<void>(apiEndpoints.credentials.detail(id), { method: "DELETE" });
+}
+
+export async function fetchCredentialNumber(id: string): Promise<string> {
+  const dto = await apiClient<CredentialNumberDto>(apiEndpoints.credentials.number(id));
+  return dto.credentialNumber;
+}
 
 export const credentialApiContract: ApiModuleContract = {
   moduleName: "credentialApi",
-  contractStatus: "pending",
+  contractStatus: "confirmed",
   requiredEndpoints: [
-    "자격증·어학 목록 조회",
-    "자격 상세 조회",
-    "자격 등록",
-    "자격 수정",
-    "자격 삭제",
+    "GET /api/credentials",
+    "POST /api/credentials",
+    "GET /api/credentials/{id}",
+    "PATCH /api/credentials/{id}",
+    "DELETE /api/credentials/{id}",
+    "GET /api/credentials/{id}/number",
   ],
   notes: [
-    "자격번호 암호화, 복호화, 마스킹 응답 정책 확인이 필요합니다.",
-    "민감정보는 로그에 남기지 않습니다.",
+    "목록·상세 응답은 credentialNumberMasked만 사용합니다.",
+    "전체 자격번호는 명시적 조회 endpoint에서만 가져오며 접근 기록이 남습니다.",
+    "PATCH는 전체 교체 방식입니다.",
   ],
 };

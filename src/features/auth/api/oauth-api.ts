@@ -1,11 +1,10 @@
 import { createApiUrl } from "@/lib/api/client";
-
-const GOOGLE_OAUTH_START_PATH = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_START_PATH;
+import { getGoogleOAuthStartPath } from "@/lib/api/env";
 
 export function getGoogleOAuthStartUrl(): string | null {
-  if (!GOOGLE_OAUTH_START_PATH) {
+  try {
+    return createApiUrl(getGoogleOAuthStartPath());
+  } catch {
     return null;
   }
-
-  return createApiUrl(GOOGLE_OAUTH_START_PATH);
 }

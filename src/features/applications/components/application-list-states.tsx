@@ -31,16 +31,22 @@ export function ApplicationLoadingState() {
   );
 }
 
-export function ApplicationErrorState() {
+export function ApplicationErrorState({
+  message = "잠시 후 다시 시도하세요.",
+  onRetry,
+}: {
+  message?: string;
+  onRetry?: () => void;
+}) {
   return (
     <Card>
       <CardContent>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid gap-1">
             <p className="text-body-medium text-neutral-900">지원 목록을 불러올 수 없습니다.</p>
-            <p className="text-body text-neutral-600">잠시 후 다시 시도하세요.</p>
+            <p className="text-body text-neutral-600">{message}</p>
           </div>
-          <Button size="sm" variant="secondary">
+          <Button onClick={onRetry} size="sm" variant="secondary">
             다시 시도
           </Button>
         </div>

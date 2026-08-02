@@ -1,3 +1,4 @@
+import type { ApplicationDetail } from "@/features/applications/detail-types";
 import type { ApplicationFormValues } from "@/features/applications/form-types";
 import type { ApplicationListItem } from "@/features/applications/types";
 
@@ -41,5 +42,24 @@ export function createApplicationFormValuesFromListItem(
     deadline: toDateTimeInputValue(application.deadline),
     status: application.status,
     memo: "",
+  };
+}
+
+export function createApplicationFormValuesFromDetail(
+  application: ApplicationDetail,
+): ApplicationFormValues {
+  return {
+    companyName: application.companyName,
+    position: application.position,
+    recruitmentYear: String(application.recruitmentYear),
+    season: application.season,
+    postingUrl: application.basicInfo.postingUrl,
+    workLocation: application.basicInfo.workLocation,
+    startDate: application.basicInfo.applicationStartAt
+      ? toDateInputValue(application.basicInfo.applicationStartAt)
+      : toDateInputValue(application.createdAt),
+    deadline: toDateTimeInputValue(application.deadline),
+    status: application.status,
+    memo: application.basicInfo.memo,
   };
 }

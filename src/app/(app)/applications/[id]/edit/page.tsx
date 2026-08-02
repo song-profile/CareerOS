@@ -2,8 +2,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { LinkButton } from "@/components/ui/link-button";
 import { ApplicationForm } from "@/features/applications/components/application-form";
-import { createApplicationFormValuesFromListItem } from "@/features/applications/form-defaults";
-import { applicationMockData } from "@/features/applications/mock-data";
+import { fetchApplicationForCurrentUser } from "@/features/applications/api/server-application-api";
+import { createApplicationFormValuesFromDetail } from "@/features/applications/form-defaults";
 
 interface EditApplicationPageProps {
   params: Promise<{
@@ -13,13 +13,13 @@ interface EditApplicationPageProps {
 
 export default async function EditApplicationPage({ params }: EditApplicationPageProps) {
   const { id } = await params;
-  const application = applicationMockData.find((item) => item.id === id);
+  const applicationResult = await fetchApplicationForCurrentUser(id);
 
-  if (!application) {
+  if (!applicationResult.ok) {
     return (
       <>
         <PageHeader
-          description="목 데이터에 없는 지원 건입니다. 목록에서 다시 선택하세요."
+          description={applicationResult.message}
           title="지원 수정"
         />
         <Card>
@@ -36,6 +36,8 @@ export default async function EditApplicationPage({ params }: EditApplicationPag
     );
   }
 
+  const application = applicationResult.value;
+
   return (
     <>
       <PageHeader
@@ -43,7 +45,8 @@ export default async function EditApplicationPage({ params }: EditApplicationPag
         title="지원 수정"
       />
       <ApplicationForm
-        initialValues={createApplicationFormValuesFromListItem(application)}
+        applicationId={application.id}
+        initialValues={createApplicationFormValuesFromDetail(application)}
         mode="edit"
       />
     </>
