@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -64,6 +65,22 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 ErrorCode.VALIDATION_ERROR.code(),
                 ErrorCode.VALIDATION_ERROR.message(),
+                request.getRequestURI(),
+                request.getHeader(REQUEST_ID_HEADER)
+        );
+        return ResponseEntity.badRequest().body(response);
+    }
+
+    /** 서블릿이 컨트롤러 전에 끊는다. 기본 처리로 두면 500이 나가므로 파일 오류로 바꾼다. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException exception,
+            HttpServletRequest request
+    ) {
+        ErrorResponse response = ErrorResponse.of(
+                HttpStatus.BAD_REQUEST.value(),
+                ErrorCode.FILE_ERROR.code(),
+                "업로드할 수 있는 파일 크기를 넘었습니다.",
                 request.getRequestURI(),
                 request.getHeader(REQUEST_ID_HEADER)
         );

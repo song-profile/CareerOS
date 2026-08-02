@@ -72,7 +72,7 @@ public class Credential extends BaseTimeEntity {
     @Column(name = "reference_url", length = 1000)
     private String referenceUrl;
 
-    /** 7단계 파일 모듈 연동용 자리. 지금은 항상 null이다. */
+    /** 증빙 파일. 소유자 확인은 서비스가 하고, 여기에는 확인된 id만 들어온다. */
     @Column(name = "file_asset_id")
     private Long fileAssetId;
 
@@ -128,6 +128,11 @@ public class Credential extends BaseTimeEntity {
                 credentialType, name, issuer, acquiredAt, score, grade,
                 validFrom, expiresAt, permanent, description, usageMemo, studyMemo, referenceUrl
         );
+    }
+
+    /** 증빙 파일 연결. null이면 연결을 해제한다. */
+    public void linkFileAsset(Long fileAssetId) {
+        this.fileAssetId = fileAssetId;
     }
 
     /** 암호문 교체는 별도 경로로만 한다. null이면 기존 값을 유지한다. */
