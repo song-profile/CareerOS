@@ -10,4 +10,6 @@ public interface CredentialRepository extends JpaRepository<Credential, Long> {
     List<Credential> findByUserIdOrderByAcquiredAtDesc(Long userId);
 
     Optional<Credential> findByIdAndUserId(Long id, Long userId);
+
+    boolean existsByFileAssetId(Long fileAssetId);
 }

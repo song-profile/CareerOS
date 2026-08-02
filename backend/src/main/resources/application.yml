@@ -17,6 +17,12 @@ spring:
     default: local
   jackson:
     time-zone: UTC
+  servlet:
+    multipart:
+      # 증명사진·성적증명서·포트폴리오 PDF 기준. 초과분은 서블릿이 먼저 끊어 FILE_ERROR로 나간다.
+      max-file-size: ${MAX_UPLOAD_SIZE:10MB}
+      # 폼 필드까지 더한 요청 전체 한도. 파일 한도와 같게 두면 한도에 딱 맞는 파일이 필드 때문에 막힌다.
+      max-request-size: ${MAX_UPLOAD_REQUEST_SIZE:11MB}
   jpa:
     open-in-view: false
     hibernate:
@@ -43,6 +49,9 @@ spring:
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  file:
+    # 업로드 본문 저장 위치. 운영에서는 컨테이너 밖 볼륨을 연결한다. 공개 웹 루트 아래에 두지 않는다.
+    storage-path: ${FILE_STORAGE_PATH:./data/files}
   security:
     # 자격번호 AES-256-GCM 키. Base64로 인코딩한 32바이트 값이다.
     # 아래 기본값은 로컬 개발 전용이며 운영에서는 반드시 CREDENTIAL_ENCRYPTION_KEY로 주입한다.

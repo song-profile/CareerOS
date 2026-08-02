@@ -52,6 +52,9 @@ public record CredentialRequest(
 
         @Size(max = 1000, message = "관련 URL은 1000자 이하여야 합니다.")
         @Pattern(regexp = "^$|^https?://\\S+$", message = "관련 URL은 http 또는 https 주소여야 합니다.")
-        String referenceUrl
+        String referenceUrl,
+
+        /** 증빙 파일 id. 본인이 업로드한 파일만 연결할 수 있다. null이면 연결을 해제한다. */
+        Long fileAssetId
 ) {
 }

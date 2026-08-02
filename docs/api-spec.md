@@ -451,3 +451,88 @@ DELETE /api/essay-answers/{id}/tags/{tagId}
 ```
 
 답변과 태그는 모두 현재 사용자 소유인지 확인한 뒤 연결한다.
+
+## File API
+
+S3 presigned URL은 사용하지 않는다. 업로드와 다운로드 모두 백엔드를 거친다. 저장소 구현은 `FileStorage` 하나이며 현재는 로컬 디스크다.
+
+### 분류
+
+- `PROFILE_PHOTO`
+- `TRANSCRIPT`
+- `GRADUATION_CERTIFICATE`
+- `CREDENTIAL_PROOF`
+- `CAREER_CERTIFICATE`
+- `PORTFOLIO`
+- `OTHER`
+
+### 업로드
+
+```http
+POST /api/files
+Content-Type: multipart/form-data
+```
+
+Form 필드:
+
+| 필드 | 필수 | 설명 |
+|---|---|---|
+| `file` | O | 파일 본문 |
+| `category` | O | 위 분류 값 |
+| `displayName` | X | 표시 이름. 없으면 원본 파일명을 쓴다. 150자 이하 |
+
+프론트엔드는 `FormData`를 보낼 때 `Content-Type`을 직접 지정하지 않는다. Boundary는 브라우저가 붙인다.
+
+허용 형식은 차단 목록이 아니라 허용 목록이다. `pdf`, `jpg`, `jpeg`, `png`만 통과하며 확장자와 MIME 타입이 같은 형식을 가리켜야 한다. HTML, SVG, 실행 파일은 모두 거부된다. 한 파일 최대 크기는 `MAX_UPLOAD_SIZE`(기본 10MB)다.
+
+응답 `201`:
+
+```json
+{
+  "id": 1,
+  "category": "CREDENTIAL_PROOF",
+  "displayName": "SQLD 자격증",
+  "originalFilename": "sqld.pdf",
+  "mimeType": "application/pdf",
+  "size": 182734,
+  "version": 1,
+  "parentAssetId": null,
+  "downloadUrl": "/api/files/1/download",
+  "createdAt": "2026-08-02T00:00:00Z",
+  "updatedAt": "2026-08-02T00:00:00Z"
+}
+```
+
+저장 키는 응답에 포함하지 않는다. 파일 접근은 항상 `id`로만 한다.
+
+### 목록·상세
+
+```http
+GET /api/files
+GET /api/files?category=PORTFOLIO
+GET /api/files/{id}
+```
+
+### 다운로드
+
+```http
+GET /api/files/{id}/download
+```
+
+본인 소유일 때만 본문을 내려준다. 언제나 `Content-Disposition: attachment`이며 공개 URL은 발급하지 않는다. 기록은 있는데 본문이 없으면 `404`다.
+
+### 삭제
+
+```http
+DELETE /api/files/{id}
+```
+
+응답 `204 No Content`.
+
+자격 정보에 연결된 파일은 `409 CONFLICT`로 거절한다. 연결을 먼저 해제해야 지울 수 있다. 증빙이 조용히 사라지면 무엇을 제출했는지 나중에 확인할 수 없기 때문이다.
+
+### 자격 정보 연결
+
+`POST/PATCH /api/credentials`의 `fileAssetId`로 증빙 파일을 연결한다. 본인이 업로드한 파일만 연결되며, 남의 파일 id는 `404`로 응답한다. `PATCH`는 전체 교체이므로 `fileAssetId`를 빼면 연결이 해제된다.
+
+오류 코드는 형식·크기·본문 문제가 `400 FILE_ERROR`, 남의 파일과 없는 파일이 `404 NOT_FOUND`, 연결된 파일 삭제가 `409 CONFLICT`다.

@@ -8,6 +8,7 @@ import com.careerdock.credential.dto.CredentialRequest;
 import com.careerdock.credential.dto.CredentialResponse;
 import com.careerdock.credential.repository.CredentialAccessAuditRepository;
 import com.careerdock.credential.repository.CredentialRepository;
+import com.careerdock.file.repository.FileAssetRepository;
 import com.careerdock.global.exception.NotFoundException;
 import com.careerdock.user.domain.User;
 import com.careerdock.user.repository.UserRepository;
@@ -23,17 +24,20 @@ public class CredentialService {
     private final CredentialAccessAuditRepository auditRepository;
     private final CredentialNumberCipher cipher;
     private final UserRepository userRepository;
+    private final FileAssetRepository fileAssetRepository;
 
     public CredentialService(
             CredentialRepository credentialRepository,
             CredentialAccessAuditRepository auditRepository,
             CredentialNumberCipher cipher,
-            UserRepository userRepository
+            UserRepository userRepository,
+            FileAssetRepository fileAssetRepository
     ) {
         this.credentialRepository = credentialRepository;
         this.auditRepository = auditRepository;
         this.cipher = cipher;
         this.userRepository = userRepository;
+        this.fileAssetRepository = fileAssetRepository;
     }
 
     @Transactional(readOnly = true)
@@ -72,6 +76,7 @@ public class CredentialService {
                 request.studyMemo(),
                 request.referenceUrl()
         );
+        credential.linkFileAsset(verifiedFileAssetId(userId, request.fileAssetId()));
         return toResponse(credentialRepository.save(credential));
     }
 
@@ -94,6 +99,7 @@ public class CredentialService {
                 request.referenceUrl()
         );
         credential.replaceCredentialNumber(cipher.encrypt(request.credentialNumber()));
+        credential.linkFileAsset(verifiedFileAssetId(userId, request.fileAssetId()));
         return toResponse(credential);
     }
 
@@ -114,6 +120,17 @@ public class CredentialService {
         }
         auditRepository.save(CredentialAccessAudit.numberViewed(credential.getId(), userId));
         return new CredentialNumberResponse(credential.getId(), number);
+    }
+
+    /** 남의 파일을 자기 자격에 붙이지 못하게 막는다. 남의 파일은 없는 것으로 답한다. */
+    private Long verifiedFileAssetId(Long userId, Long fileAssetId) {
+        if (fileAssetId == null) {
+            return null;
+        }
+        if (!fileAssetRepository.existsByIdAndUserId(fileAssetId, userId)) {
+            throw new NotFoundException("연결할 파일을 찾을 수 없습니다.");
+        }
+        return fileAssetId;
     }
 
     private boolean isExpiringWithin(Credential credential, LocalDate today, int days) {
