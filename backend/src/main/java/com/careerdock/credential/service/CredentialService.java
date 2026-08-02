@@ -6,9 +6,11 @@ import com.careerdock.credential.domain.CredentialType;
 import com.careerdock.credential.dto.CredentialNumberResponse;
 import com.careerdock.credential.dto.CredentialRequest;
 import com.careerdock.credential.dto.CredentialResponse;
+import com.careerdock.application.resource.repository.ApplicationCredentialRepository;
 import com.careerdock.credential.repository.CredentialAccessAuditRepository;
 import com.careerdock.credential.repository.CredentialRepository;
 import com.careerdock.file.repository.FileAssetRepository;
+import com.careerdock.global.exception.ConflictException;
 import com.careerdock.global.exception.NotFoundException;
 import com.careerdock.user.domain.User;
 import com.careerdock.user.repository.UserRepository;
@@ -25,19 +27,22 @@ public class CredentialService {
     private final CredentialNumberCipher cipher;
     private final UserRepository userRepository;
     private final FileAssetRepository fileAssetRepository;
+    private final ApplicationCredentialRepository applicationCredentialRepository;
 
     public CredentialService(
             CredentialRepository credentialRepository,
             CredentialAccessAuditRepository auditRepository,
             CredentialNumberCipher cipher,
             UserRepository userRepository,
-            FileAssetRepository fileAssetRepository
+            FileAssetRepository fileAssetRepository,
+            ApplicationCredentialRepository applicationCredentialRepository
     ) {
         this.credentialRepository = credentialRepository;
         this.auditRepository = auditRepository;
         this.cipher = cipher;
         this.userRepository = userRepository;
         this.fileAssetRepository = fileAssetRepository;
+        this.applicationCredentialRepository = applicationCredentialRepository;
     }
 
     @Transactional(readOnly = true)
@@ -103,9 +108,17 @@ public class CredentialService {
         return toResponse(credential);
     }
 
+    /**
+     * 지원 건에 연결된 자격은 지우지 않는다. 무엇을 제출했는지 나중에도 확인할 수 있어야 한다.
+     * DB에도 같은 제약이 걸려 있지만, 사용자에게는 500이 아니라 409로 이유를 알려준다.
+     */
     @Transactional
     public void delete(Long userId, Long credentialId) {
-        credentialRepository.delete(getCredential(userId, credentialId));
+        Credential credential = getCredential(userId, credentialId);
+        if (applicationCredentialRepository.existsByCredentialId(credentialId)) {
+            throw new ConflictException("지원 건에 연결된 자격 정보입니다. 연결을 먼저 해제해주세요.");
+        }
+        credentialRepository.delete(credential);
     }
 
     /**

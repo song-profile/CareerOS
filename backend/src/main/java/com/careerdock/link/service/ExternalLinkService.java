@@ -1,5 +1,7 @@
 package com.careerdock.link.service;
 
+import com.careerdock.application.resource.repository.ApplicationExternalLinkRepository;
+import com.careerdock.global.exception.ConflictException;
 import com.careerdock.global.exception.NotFoundException;
 import com.careerdock.link.domain.ExternalLink;
 import com.careerdock.link.dto.ExternalLinkRequest;
@@ -16,10 +18,16 @@ public class ExternalLinkService {
 
     private final ExternalLinkRepository linkRepository;
     private final UserRepository userRepository;
+    private final ApplicationExternalLinkRepository applicationExternalLinkRepository;
 
-    public ExternalLinkService(ExternalLinkRepository linkRepository, UserRepository userRepository) {
+    public ExternalLinkService(
+            ExternalLinkRepository linkRepository,
+            UserRepository userRepository,
+            ApplicationExternalLinkRepository applicationExternalLinkRepository
+    ) {
         this.linkRepository = linkRepository;
         this.userRepository = userRepository;
+        this.applicationExternalLinkRepository = applicationExternalLinkRepository;
     }
 
     @Transactional(readOnly = true)
@@ -59,9 +67,17 @@ public class ExternalLinkService {
         return ExternalLinkResponse.from(link);
     }
 
+    /**
+     * 지원 건에 연결된 외부 링크는 지우지 않는다. 무엇을 제출했는지 나중에도 확인할 수 있어야 한다.
+     * DB에도 같은 제약이 걸려 있지만, 사용자에게는 500이 아니라 409로 이유를 알려준다.
+     */
     @Transactional
     public void delete(Long userId, Long linkId) {
-        linkRepository.delete(getLink(userId, linkId));
+        ExternalLink link = getLink(userId, linkId);
+        if (applicationExternalLinkRepository.existsByExternalLinkId(linkId)) {
+            throw new ConflictException("지원 건에 연결된 외부 링크입니다. 연결을 먼저 해제해주세요.");
+        }
+        linkRepository.delete(link);
     }
 
     private ExternalLink getLink(Long userId, Long linkId) {
