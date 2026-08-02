@@ -682,3 +682,129 @@ DELETE /api/calendar/events/{id}
 ### 권한
 
 모든 조회·수정·삭제는 인증된 사용자 ID 조건을 포함한다. 다른 사용자의 일정은 `404`로 응답해 존재 자체를 알리지 않는다. 다른 사용자의 지원 건을 연결하려는 요청도 `404`다.
+
+## Application Resources API
+
+지원 건에 실제로 무엇을 제출했는지 나중에도 확인하기 위한 연결 API다. 파일·자격·외부 링크는 별도 연결 테이블(`application_files`, `application_credentials`, `application_external_links`)로 다대다 관계를 맺는다.
+
+자소서는 별도 연결 테이블이 없다. `EssayQuestion`이 이미 `application_id`를 직접 가지고 있어(6단계) 문항 자체가 지원 건에 속한다. 이 API의 `essayQuestions`는 그 문항들에 실제 제출본이 있는지를 함께 보여줄 뿐, 새 관계를 만들지 않는다.
+
+연결과 원본 삭제는 다른 동작이다. 연결 해제(`DELETE`)는 연결 행만 지우고 파일·자격·외부 링크 원본은 각자의 목록·상세 API에 그대로 남는다. 반대로 원본이 지원 건에 연결돼 있으면 `DELETE /api/files/{id}`, `DELETE /api/credentials/{id}`, `DELETE /api/external-links/{id}`는 `409 CONFLICT`로 거절된다. 연결을 먼저 해제해야 원본을 지울 수 있다.
+
+지원 건을 삭제하면 그 지원 건의 연결 행은 함께 지워진다(`ON DELETE CASCADE`). 파일·자격·외부 링크 원본은 영향받지 않는다.
+
+### 다중 연결 미지원
+
+`POST .../files`, `.../credentials`, `.../external-links`는 한 번에 하나씩만 연결한다. 프론트 "제출자료" 섹션이 아직 목업 상태고(`application-detail.tsx`의 `ApplicationMaterialsSection`, `placeholderHref`) 여러 개를 한 번에 고르는 화면이 없어서, 배열 요청(`fileIds: [1,2,3]`) 대신 이 API의 다른 엔드포인트들과 같은 단일 연결 형태로 맞췄다. 여러 개를 연결하려면 클라이언트가 항목마다 반복 호출한다.
+
+### 통합 조회
+
+```http
+GET /api/applications/{id}/resources
+```
+
+응답:
+
+```json
+{
+  "applicationId": 1,
+  "files": [
+    {
+      "id": 10,
+      "fileAssetId": 3,
+      "category": "CREDENTIAL_PROOF",
+      "displayName": "SQLD 자격증",
+      "originalFilename": "sqld.pdf",
+      "mimeType": "application/pdf",
+      "size": 182734,
+      "lockedVersion": 1,
+      "downloadUrl": "/api/files/3/download",
+      "purpose": "자격 증빙",
+      "linkedAt": "2026-08-02T00:00:00Z"
+    }
+  ],
+  "credentials": [
+    {
+      "id": 11,
+      "credentialId": 5,
+      "credentialType": "CERTIFICATION",
+      "name": "SQLD",
+      "issuer": "한국데이터산업진흥원",
+      "purpose": null,
+      "linkedAt": "2026-08-02T00:00:00Z"
+    }
+  ],
+  "externalLinks": [
+    {
+      "id": 12,
+      "externalLinkId": 2,
+      "linkType": "GITHUB",
+      "displayName": "내 깃허브",
+      "url": "https://github.com/example",
+      "purpose": null,
+      "linkedAt": "2026-08-02T00:00:00Z"
+    }
+  ],
+  "essayQuestions": [
+    {
+      "id": 1,
+      "questionOrder": 1,
+      "questionText": "지원동기를 작성하세요.",
+      "commonQuestionType": "MOTIVATION",
+      "hasSubmittedAnswer": true,
+      "submittedAnswerId": 7,
+      "submittedAnswerVersion": 1,
+      "submittedAt": "2026-08-02T00:00:00Z"
+    }
+  ]
+}
+```
+
+`credentials`에는 자격번호(마스킹 값 포함)를 넣지 않는다. 필요하면 `GET /api/credentials/{id}`를 따로 호출한다. `essayQuestions.hasSubmittedAnswer`가 `false`면 나머지 `submitted*` 필드는 `null`이다. 여러 버전이 제출된 적이 있으면 버전이 가장 높은 `SUBMITTED` 답변을 보여준다.
+
+### 파일 연결·해제
+
+```http
+POST /api/applications/{id}/files
+DELETE /api/applications/{id}/files/{fileId}
+```
+
+`{fileId}`는 `FileAsset`의 id다(연결 행의 id가 아니다). 요청:
+
+```json
+{ "fileAssetId": 3, "purpose": "자격 증빙" }
+```
+
+`purpose`는 선택이며 100자 이하다.
+
+### 자격 연결·해제
+
+```http
+POST /api/applications/{id}/credentials
+DELETE /api/applications/{id}/credentials/{credentialId}
+```
+
+```json
+{ "credentialId": 5, "purpose": "자격 증빙" }
+```
+
+### 외부 링크 연결·해제
+
+```http
+POST /api/applications/{id}/external-links
+DELETE /api/applications/{id}/external-links/{linkId}
+```
+
+```json
+{ "externalLinkId": 2, "purpose": "포트폴리오 링크" }
+```
+
+### 도메인 규칙
+
+- `Application`은 현재 사용자 소유여야 한다.
+- 연결할 파일·자격·외부 링크도 현재 사용자 소유여야 한다.
+- 같은 지원 건에 같은 자료를 두 번 연결할 수 없다(`(application_id, 자료 id)` 유니크 제약, 위반 시 `409 DUPLICATE_RESOURCE`).
+- 다른 사용자의 자료이거나 존재하지 않는 자료를 연결하려 하면 `404`다 — 존재 자체를 알리지 않는다.
+- `lockedVersion`은 연결 시점의 파일 버전을 그대로 기록만 한다. 지금은 파일 버전 기능 자체가 없어 항상 1이고, 이 값을 근거로 막거나 잠그는 동작은 없다.
+
+오류 코드: `400 VALIDATION_ERROR`(제목·용도 길이 등), `404 NOT_FOUND`(지원 건·자료 없음 또는 남의 것), `409 DUPLICATE_RESOURCE`(중복 연결), `409 CONFLICT`(연결된 원본 삭제 시도).

@@ -1,5 +1,6 @@
 package com.careerdock.file.service;
 
+import com.careerdock.application.resource.repository.ApplicationFileRepository;
 import com.careerdock.credential.repository.CredentialRepository;
 import com.careerdock.file.domain.AllowedFileType;
 import com.careerdock.file.domain.FileAsset;
@@ -31,17 +32,20 @@ public class FileService {
 
     private final FileAssetRepository fileAssetRepository;
     private final CredentialRepository credentialRepository;
+    private final ApplicationFileRepository applicationFileRepository;
     private final UserRepository userRepository;
     private final FileStorage storage;
 
     public FileService(
             FileAssetRepository fileAssetRepository,
             CredentialRepository credentialRepository,
+            ApplicationFileRepository applicationFileRepository,
             UserRepository userRepository,
             FileStorage storage
     ) {
         this.fileAssetRepository = fileAssetRepository;
         this.credentialRepository = credentialRepository;
+        this.applicationFileRepository = applicationFileRepository;
         this.userRepository = userRepository;
         this.storage = storage;
     }
@@ -124,6 +128,9 @@ public class FileService {
         FileAsset asset = getAsset(userId, fileId);
         if (credentialRepository.existsByFileAssetId(fileId)) {
             throw new ConflictException("자격 정보에 연결된 파일입니다. 연결을 먼저 해제해주세요.");
+        }
+        if (applicationFileRepository.existsByFileAssetId(fileId)) {
+            throw new ConflictException("지원 건에 연결된 파일입니다. 연결을 먼저 해제해주세요.");
         }
         fileAssetRepository.delete(asset);
         fileAssetRepository.flush();
