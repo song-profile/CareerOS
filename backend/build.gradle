@@ -28,6 +28,11 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
 
+    // Google Calendar 실제 동기화(11단계). google-oauth-client, google-http-client-gson 등은
+    // google-api-client의 전이 의존성으로 함께 들어온다.
+    implementation 'com.google.api-client:google-api-client:2.9.0'
+    implementation 'com.google.apis:google-api-services-calendar:v3-rev20260708-2.0.0'
+
     runtimeOnly 'org.postgresql:postgresql'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
