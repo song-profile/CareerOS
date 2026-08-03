@@ -29,6 +29,7 @@ public record RecruitmentEventResponse(
         String memo,
         String googleEventId,
         SyncStatus syncStatus,
+        String syncFailureReason,
         List<ReminderRuleResponse> reminderRules,
         Instant createdAt,
         Instant updatedAt
@@ -50,6 +51,7 @@ public record RecruitmentEventResponse(
                 event.getMemo(),
                 event.getGoogleEventId(),
                 event.getSyncStatus(),
+                event.getSyncFailureReason(),
                 event.getReminderRules().stream()
                         .sorted(Comparator.comparingInt(rule -> -rule.getMinutesBefore()))
                         .map(ReminderRuleResponse::from)

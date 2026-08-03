@@ -11,6 +11,12 @@ public enum ErrorCode {
     CONFLICT(HttpStatus.CONFLICT, "CONFLICT", "현재 상태에서는 요청을 처리할 수 없습니다."),
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "DUPLICATE_RESOURCE", "이미 존재하는 데이터입니다."),
     FILE_ERROR(HttpStatus.BAD_REQUEST, "FILE_ERROR", "파일을 처리할 수 없습니다."),
+    GOOGLE_NOT_CONNECTED(HttpStatus.CONFLICT, "GOOGLE_NOT_CONNECTED", "Google Calendar가 연결되어 있지 않습니다."),
+    // 401(UNAUTHORIZED)은 CareerDock 로그인 자체가 필요하다는 의미로 이미 쓰이고 있어,
+    // Calendar 재동의가 필요한 상황과 섞이지 않도록 409로 구분한다.
+    GOOGLE_TOKEN_EXPIRED(HttpStatus.CONFLICT, "GOOGLE_TOKEN_EXPIRED", "Google Calendar 연결이 만료되었습니다. 다시 연결해주세요."),
+    GOOGLE_API_ERROR(HttpStatus.BAD_GATEWAY, "GOOGLE_API_ERROR", "Google Calendar 요청 처리 중 오류가 발생했습니다."),
+    GOOGLE_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "GOOGLE_RATE_LIMITED", "Google Calendar 요청이 많아 잠시 후 다시 시도해주세요."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 오류가 발생했습니다.");
 
     private final HttpStatus httpStatus;
