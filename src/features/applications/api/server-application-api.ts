@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { createServerCookieHeader } from "@/lib/api/server-cookie";
 import { ApiClientError, createApiUrl } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import type { ApiQueryParams } from "@/lib/api/types";
@@ -75,13 +75,4 @@ async function serverApplicationRequest<TValue>(
 
     return { ok: false, message: "지원 API에 연결할 수 없습니다." };
   }
-}
-
-async function createServerCookieHeader(): Promise<string> {
-  const cookieStore = await cookies();
-
-  return cookieStore
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join("; ");
 }

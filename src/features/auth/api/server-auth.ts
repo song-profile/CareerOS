@@ -1,5 +1,5 @@
-import { cookies } from "next/headers";
 import { ApiClientError, createApiUrl } from "@/lib/api/client";
+import { createServerCookieHeader } from "@/lib/api/server-cookie";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import type { CurrentUserDto, CurrentUserViewModel } from "@/features/auth/api/dto";
 import { toCurrentUserViewModel } from "@/features/auth/api/mapper";
@@ -31,6 +31,8 @@ export async function getCurrentUserFromSession(): Promise<AuthState> {
     }
 
     if (!response.ok) {
+      // 원인을 삼키면 화면에는 "확인할 수 없습니다"만 남아 디버깅이 불가능하다.
+      console.error(`[auth] GET ${apiEndpoints.auth.me} -> ${response.status}`);
       return { status: "error", message: "로그인 상태를 확인할 수 없습니다." };
     }
 
@@ -41,15 +43,7 @@ export async function getCurrentUserFromSession(): Promise<AuthState> {
       return { status: "unauthenticated" };
     }
 
+    console.error("[auth] 세션 확인 요청 실패:", error);
     return { status: "error", message: "인증 서버에 연결할 수 없습니다." };
   }
-}
-
-async function createServerCookieHeader(): Promise<string> {
-  const cookieStore = await cookies();
-
-  return cookieStore
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join("; ");
 }

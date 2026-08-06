@@ -39,11 +39,15 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID:dev-google-client-id}
-            client-secret: ${GOOGLE_CLIENT_SECRET:dev-google-client-secret}
+            # 기본값 없음 — 미주입 시 기동에 실패한다. 실제 값은 backend/.env.local에만 둔다.
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             redirect-uri: ${GOOGLE_REDIRECT_URI:{baseUrl}/login/oauth2/code/{registrationId}}
+            # openid를 넣으면 Spring이 OIDC 로그인으로 판단해 기본 OidcUserService를 쓰고,
+            # userInfoEndpoint().userService()로 등록한 CareerdockOAuth2UserService를 건너뛴다.
+            # 그러면 사용자 프로비저닝이 일어나지 않고 principal도 DefaultOidcUser가 된다.
+            # 필요한 sub/email/name/picture는 userinfo 응답에 다 있으므로 openid는 쓰지 않는다.
             scope:
-              - openid
               - profile
               - email
 
