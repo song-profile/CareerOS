@@ -90,6 +90,18 @@ export function getFileDownloadUrl(id: string): string {
   return createApiUrl(apiEndpoints.files.download(id));
 }
 
+export async function downloadFileBlob(id: string): Promise<Blob> {
+  const response = await fetch(getFileDownloadUrl(id), {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error("파일을 다운로드할 수 없습니다.");
+  }
+
+  return response.blob();
+}
+
 export async function deleteFile(id: string): Promise<void> {
   await apiClient<void>(apiEndpoints.files.detail(id), { method: "DELETE" });
 }

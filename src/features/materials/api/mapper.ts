@@ -62,8 +62,8 @@ const LINK_TYPE_TO_VIEW: Record<LinkTypeDto, ExternalLinkType> = {
   VELOG: "Velog",
   PORTFOLIO: "Portfolio",
   LINKEDIN: "LinkedIn",
-  DEPLOYED_SERVICE: "Portfolio",
-  PROJECT_REPOSITORY: "GitHub",
+  DEPLOYED_SERVICE: "배포 서비스",
+  PROJECT_REPOSITORY: "프로젝트 Repository",
   OTHER: "기타",
 };
 
@@ -74,6 +74,8 @@ const LINK_TYPE_TO_DTO: Record<ExternalLinkType, LinkTypeDto> = {
   Blog: "BLOG",
   Portfolio: "PORTFOLIO",
   LinkedIn: "LINKEDIN",
+  "배포 서비스": "DEPLOYED_SERVICE",
+  "프로젝트 Repository": "PROJECT_REPOSITORY",
   기타: "OTHER",
 };
 
@@ -85,6 +87,7 @@ export function toCredentialViewModel(dto: CredentialDto): Credential {
     issuer: dto.issuer ?? "",
     acquiredAt: toDate(dto.acquiredAt),
     credentialNumber: dto.credentialNumberMasked ?? "",
+    hasCredentialNumber: dto.hasCredentialNumber,
     score: dto.score ?? "",
     grade: dto.grade ?? "",
     validFrom: dto.validFrom ? toDate(dto.validFrom) : null,

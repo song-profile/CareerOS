@@ -60,7 +60,7 @@ export function ErrorStateCard({
   title,
 }: ErrorStateCardProps) {
   return (
-    <Card>
+    <Card role="alert">
       <CardContent>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid gap-1">

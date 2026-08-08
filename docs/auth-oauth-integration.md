@@ -1,38 +1,68 @@
 # CareerDock Google OAuth Integration Notes
 
-작성일: 2026-08-02
+작성 기준: 현재 저장소 구현
 
-## 확인 결과
+## 현재 구현 상태
 
-- 현재 저장소에는 Spring Boot 백엔드 코드가 없다.
-- `docs/api-spec.md`, OpenAPI/Swagger 명세, OAuth endpoint 문서가 없다.
-- 원격 브랜치에도 백엔드 브랜치는 확인되지 않았다.
-- `localhost:8080`의 OAuth 후보 endpoint는 연결되지 않았다.
+CareerDock 로그인은 Spring Security OAuth2 Login과 서버 세션을 사용한다.
 
-## 현재 프론트 구현 상태
+- OAuth 시작 URL: `GET /oauth2/authorization/google`
+- OAuth callback URL: `GET /login/oauth2/code/google`
+- 현재 사용자 조회: `GET /api/auth/me`
+- 로그아웃: Spring Security logout endpoint와 프론트 logout API 흐름 사용
+- 인증 유지: HttpOnly `JSESSIONID` Cookie
+- 프론트 API 요청: `credentials: "include"`
 
-- Google 로그인 버튼 UI는 로그인/회원가입 화면에 추가했다.
-- 실제 OAuth 시작 URL은 추측하지 않는다.
-- `NEXT_PUBLIC_GOOGLE_OAUTH_START_PATH`가 비어 있으면 버튼은 비활성화된다.
-- 값이 설정되면 `NEXT_PUBLIC_API_BASE_URL`과 조합해 redirect 방식으로 이동한다.
+프론트는 Google 인증 페이지로 redirect만 수행하며, Google token이나 authorization code를 직접 다루지 않는다.
 
-## 백엔드에서 반드시 확정해야 할 항목
+## 설정 항목
 
-- OAuth 시작 URL
-- OAuth callback URL
-- 성공 redirect URL
-- 실패 redirect URL
-- 현재 사용자 조회 endpoint와 응답 JSON
-- 로그아웃 endpoint와 method
-- 인증 방식: HttpOnly Cookie, Bearer Token, Session 중 무엇인지
-- Cookie `SameSite`, `Secure`, Domain, Path 설정
-- CORS `Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials`
-- CSRF 방어 방식
-- OAuth `state` 검증 담당 위치
+Backend runtime에는 다음 환경변수가 필요하다.
+
+```bash
+GOOGLE_CLIENT_ID=replace-with-google-client-id
+GOOGLE_CLIENT_SECRET=replace-with-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:8080/login/oauth2/code/google
+FRONTEND_URL=http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3000
+```
+
+Frontend runtime에는 다음 환경변수가 필요하다.
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+NEXT_PUBLIC_GOOGLE_OAUTH_START_PATH=/oauth2/authorization/google
+```
+
+실제 Client ID, Client Secret은 문서와 Git에 남기지 않는다.
+
+## Google Cloud Console 설정
+
+로컬 개발용 Authorized redirect URI:
+
+```text
+http://localhost:8080/login/oauth2/code/google
+http://localhost:8080/api/calendar/oauth/callback
+```
+
+첫 번째는 Google 로그인용이고, 두 번째는 로그인 후 사용자가 Calendar 연결 버튼을 눌렀을 때 쓰는 Google Calendar 권한 동의용이다. 운영 배포 시에는 운영 backend 외부 URL 기준 redirect URI를 별도로 등록해야 한다.
 
 ## 보안 원칙
 
-- Google Client Secret은 프론트 코드와 환경변수에 두지 않는다.
-- Authorization Code, Access Token, Refresh Token을 화면이나 로그에 노출하지 않는다.
-- 인증 방식 확정 전에는 localStorage를 사용하지 않는다.
-- 보호 페이지 처리는 Cookie/Session 확인 가능 여부를 확인한 뒤 구현한다.
+- Client Secret은 backend 환경변수로만 주입한다.
+- Access Token, Refresh Token, Authorization Code를 브라우저 저장소에 저장하지 않는다.
+- 인증 상태는 서버 세션과 HttpOnly Cookie로 유지한다.
+- 운영에서 프론트/백엔드 도메인이 분리되면 HTTPS, `COOKIE_SECURE=true`, `COOKIE_SAME_SITE=None`, 정확한 `ALLOWED_ORIGINS` 설정이 필요하다.
+- OAuth `state` 검증은 Spring Security OAuth2 Client가 담당한다.
+
+## 회귀 방지 포인트
+
+과거 `scope`에 `openid`가 포함되면 Spring Security가 OIDC 흐름을 선택해 프로젝트의 커스텀 OAuth 사용자 서비스 경로가 우회될 수 있었다.
+
+현재 문서 기준의 로그인 흐름은 OAuth2 UserService 경로를 사용한다. 관련 테스트는 다음 내용을 검증한다.
+
+- `openid` scope 미포함
+- 로그인 후 principal 타입
+- 최초 로그인 시 사용자 자동 생성
+- 동일 Google subject 재로그인 시 중복 사용자 생성 방지
+- `/api/auth/me` 인증/비인증 응답

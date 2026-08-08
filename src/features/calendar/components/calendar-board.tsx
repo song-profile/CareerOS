@@ -5,7 +5,9 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LinkButton } from "@/components/ui/link-button";
+import { Toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils/cn";
+import { fetchCalendarEvents } from "@/features/calendar/api/calendar-api";
 import { WEEKDAY_LABELS } from "@/features/calendar/constants";
 import {
   addMonths,
@@ -15,7 +17,7 @@ import {
   formatMonthTitle,
   getDDayLabel,
   getEventsForDate,
-  getUpcomingEvents,
+  getCalendarGridRange,
   toDateKey,
 } from "@/features/calendar/date-utils";
 import { EventTypeBadge } from "@/features/calendar/components/event-type-badge";
@@ -24,12 +26,21 @@ import type { CalendarEvent } from "@/features/calendar/types";
 
 export interface CalendarBoardProps {
   events: CalendarEvent[];
+  initialMonth: string;
+  upcomingEvents: CalendarEvent[];
 }
 
-export function CalendarBoard({ events }: CalendarBoardProps) {
+export function CalendarBoard({
+  events: initialEvents,
+  initialMonth,
+  upcomingEvents,
+}: CalendarBoardProps) {
   const [today] = useState(() => new Date());
-  const [visibleMonth, setVisibleMonth] = useState(() => new Date());
+  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
+  const [visibleMonth, setVisibleMonth] = useState(() => new Date(initialMonth));
   const [selectedDateKey, setSelectedDateKey] = useState(() => toDateKey(new Date()));
+  const [loadingMonth, setLoadingMonth] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const monthDays = useMemo(
     () => buildCalendarMonthDays(visibleMonth, today),
@@ -43,19 +54,38 @@ export function CalendarBoard({ events }: CalendarBoardProps) {
     () => getEventsForDate(events, selectedDate),
     [events, selectedDate],
   );
-  const upcomingEvents = useMemo(() => getUpcomingEvents(events, today).slice(0, 8), [events, today]);
   const hasCurrentMonthEvents = monthDays.some(
     (day) => day.isCurrentMonth && getEventsForDate(events, day.date).length > 0,
   );
 
+  async function loadMonth(month: Date) {
+    setLoadingMonth(true);
+    setNotice("");
+    try {
+      const range = getCalendarGridRange(month);
+      const nextEvents = await fetchCalendarEvents({
+        start: range.start.toISOString(),
+        end: range.end.toISOString(),
+      });
+      setEvents(nextEvents);
+    } catch {
+      setNotice("월간 일정을 불러올 수 없습니다.");
+    } finally {
+      setLoadingMonth(false);
+    }
+  }
+
   function moveMonth(months: number) {
-    setVisibleMonth((current) => addMonths(current, months));
+    const nextMonth = addMonths(visibleMonth, months);
+    setVisibleMonth(nextMonth);
+    void loadMonth(nextMonth);
   }
 
   function moveToday() {
     const nextToday = new Date();
     setVisibleMonth(nextToday);
     setSelectedDateKey(toDateKey(nextToday));
+    void loadMonth(nextToday);
   }
 
   if (events.length === 0) {
@@ -74,6 +104,7 @@ export function CalendarBoard({ events }: CalendarBoardProps) {
         <CardContent>
           <div className="grid gap-4">
             <CalendarHeader
+              loading={loadingMonth}
               monthTitle={formatMonthTitle(visibleMonth)}
               onNext={() => moveMonth(1)}
               onPrev={() => moveMonth(-1)}
@@ -111,16 +142,20 @@ export function CalendarBoard({ events }: CalendarBoardProps) {
         <SelectedDatePanel dateKey={selectedDateKey} events={selectedDateEvents} />
         <UpcomingEventList events={upcomingEvents} />
       </div>
+
+      {notice ? <Toast tone="error">{notice}</Toast> : null}
     </div>
   );
 }
 
 function CalendarHeader({
+  loading,
   monthTitle,
   onNext,
   onPrev,
   onToday,
 }: {
+  loading: boolean;
   monthTitle: string;
   onNext: () => void;
   onPrev: () => void;
@@ -130,13 +165,25 @@ function CalendarHeader({
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h2 className="text-h1 text-neutral-900">{monthTitle}</h2>
       <div className="grid grid-cols-3 gap-2 sm:flex">
-        <Button aria-label="이전 달 보기" onClick={onPrev} size="sm" variant="secondary">
+        <Button
+          aria-label="이전 달 보기"
+          disabled={loading}
+          onClick={onPrev}
+          size="sm"
+          variant="secondary"
+        >
           이전
         </Button>
-        <Button onClick={onToday} size="sm" variant="secondary">
-          오늘
+        <Button disabled={loading} onClick={onToday} size="sm" variant="secondary">
+          {loading ? "불러오는 중" : "오늘"}
         </Button>
-        <Button aria-label="다음 달 보기" onClick={onNext} size="sm" variant="secondary">
+        <Button
+          aria-label="다음 달 보기"
+          disabled={loading}
+          onClick={onNext}
+          size="sm"
+          variant="secondary"
+        >
           다음
         </Button>
       </div>

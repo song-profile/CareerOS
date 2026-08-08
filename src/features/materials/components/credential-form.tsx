@@ -93,11 +93,9 @@ export function CredentialForm({ credentialId, initialValues, mode }: Credential
       return;
     }
 
-    setMessage(
-      mode === "create"
-        ? "자격 정보를 저장했습니다. API 연동 전이라 새로고침하면 사라집니다."
-        : "수정 내용을 저장했습니다. API 연동 전이라 새로고침하면 사라집니다.",
-    );
+    setMessage(mode === "create" ? "자격 정보를 저장했습니다." : "수정 내용을 저장했습니다.");
+    router.push(`/materials/credentials/${result.value.id}`);
+    router.refresh();
   }
 
   return (

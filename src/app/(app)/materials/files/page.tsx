@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkButton } from "@/components/ui/link-button";
+import { getMaterialFilesForCurrentUser } from "@/features/materials/api/server-materials-api";
 import { LazyMaterialFileList } from "@/features/materials/components/lazy-material-file-list";
 import { MaterialFileListSkeleton, MaterialsErrorState } from "@/features/materials/components/materials-states";
-import { getMaterialFiles } from "@/features/materials/materials-service";
 
 export default async function MaterialFilesPage() {
-  const filesResult = await getMaterialFiles();
+  const filesResult = await getMaterialFilesForCurrentUser();
 
   return (
     <>

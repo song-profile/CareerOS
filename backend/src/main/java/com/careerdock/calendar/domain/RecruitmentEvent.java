@@ -80,6 +80,9 @@ public class RecruitmentEvent extends BaseTimeEntity {
     @Column(name = "sync_status", nullable = false, length = 20)
     private SyncStatus syncStatus;
 
+    @Column(name = "sync_failure_reason", length = 500)
+    private String syncFailureReason;
+
     /**
      * 지연 로딩 컬렉션. 일정마다 알림을 한 번씩 더 읽는 대신, 한 트랜잭션 안의 일정들을
      * IN 절로 묶어 한 번에 가져온다. 월간 조회처럼 여러 일정을 한 번에 응답할 때 효과가 있다.
@@ -141,6 +144,35 @@ public class RecruitmentEvent extends BaseTimeEntity {
         }
         reminderRules.clear();
         reminderRules.addAll(rules);
+    }
+
+    /** Google Calendar push 성공. 다음 push부터는 이 id로 update를 호출한다. */
+    public void markSynced(String googleEventId) {
+        this.googleEventId = googleEventId;
+        this.syncStatus = SyncStatus.SYNCED;
+        this.syncFailureReason = null;
+    }
+
+    /** Google 쪽 실패(레이트리밋, 인증 만료, API 오류 등). CareerDock 쪽 데이터는 그대로 둔다. */
+    public void markSyncFailed(String reason) {
+        this.syncStatus = SyncStatus.FAILED;
+        this.syncFailureReason = reason == null || reason.length() <= 500 ? reason : reason.substring(0, 500);
+    }
+
+    /**
+     * Google 쪽에서 이 이벤트가 이미 사라진 경우(404). googleEventId를 비워 다음 재시도가
+     * 새 이벤트로 다시 만들게 한다.
+     */
+    public void clearGoogleLink(String reason) {
+        this.googleEventId = null;
+        markSyncFailed(reason);
+    }
+
+    /** Calendar 연결 해제. 오류가 아니라 사용자가 스스로 끊은 것이라 FAILED가 아닌 NOT_CONNECTED로 되돌린다. */
+    public void resetForDisconnect() {
+        this.googleEventId = null;
+        this.syncStatus = SyncStatus.NOT_CONNECTED;
+        this.syncFailureReason = null;
     }
 
     private void apply(
@@ -220,6 +252,8 @@ public class RecruitmentEvent extends BaseTimeEntity {
     public String getGoogleEventId() { return googleEventId; }
 
     public SyncStatus getSyncStatus() { return syncStatus; }
+
+    public String getSyncFailureReason() { return syncFailureReason; }
 
     public List<ReminderRule> getReminderRules() { return reminderRules; }
 }

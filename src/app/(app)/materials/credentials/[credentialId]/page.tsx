@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
+import { getCredentialForCurrentUser } from "@/features/materials/api/server-materials-api";
 import { CredentialDetailView } from "@/features/materials/components/credential-detail";
 import { CredentialNotFoundState } from "@/features/materials/components/materials-states";
-import { getCredential } from "@/features/materials/materials-service";
 
 interface CredentialDetailPageProps {
   params: Promise<{ credentialId: string }>;
@@ -9,7 +9,7 @@ interface CredentialDetailPageProps {
 
 export default async function CredentialDetailPage({ params }: CredentialDetailPageProps) {
   const { credentialId } = await params;
-  const result = await getCredential(credentialId);
+  const result = await getCredentialForCurrentUser(credentialId);
 
   if (!result.ok) {
     return (

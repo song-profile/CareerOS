@@ -12,12 +12,15 @@ import {
   getCredentialValidityStatus,
   sortCredentials,
 } from "@/features/materials/credential-utils";
-import { getCredentials, getUserProfile } from "@/features/materials/materials-service";
+import {
+  getCredentialsForCurrentUser,
+  getUserProfileForCurrentUser,
+} from "@/features/materials/api/server-materials-api";
 
 export default async function MaterialsPage() {
   const [profileResult, credentialsResult] = await Promise.all([
-    getUserProfile(),
-    getCredentials(),
+    getUserProfileForCurrentUser(),
+    getCredentialsForCurrentUser(),
   ]);
 
   const credentials = credentialsResult.ok ? credentialsResult.value : [];
@@ -136,13 +139,13 @@ export default async function MaterialsPage() {
         <MaterialsEmptyState
           actionHref="/materials/files"
           actionLabel="파일 보관함 열기"
-          description="증명사진, 성적증명서, 포트폴리오를 보관하는 영역입니다. 파일 보관함에서 목 데이터를 확인할 수 있습니다."
+          description="증명사진, 성적증명서, 포트폴리오를 보관하는 영역입니다."
           title="등록된 파일이 없습니다."
         />
         <MaterialsEmptyState
           actionHref="/materials/links"
           actionLabel="외부 링크 열기"
-          description="GitHub, Notion, 블로그 주소를 모아두는 영역입니다. 외부 링크 관리에서 목 데이터를 확인할 수 있습니다."
+          description="GitHub, Notion, 블로그 주소를 모아두는 영역입니다."
           title="등록된 외부 링크가 없습니다."
         />
       </div>

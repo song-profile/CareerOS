@@ -18,11 +18,13 @@ interface ToastProps extends HTMLAttributes<HTMLDivElement> {
 export function Toast({
   children,
   className,
-  role = "status",
+  role,
   tone = "info",
   widthClassName = "sm:w-[360px]",
   ...props
 }: ToastProps) {
+  const resolvedRole = role ?? (tone === "error" ? "alert" : "status");
+
   return (
     <div
       className={cn(
@@ -31,7 +33,7 @@ export function Toast({
         widthClassName,
         className,
       )}
-      role={role}
+      role={resolvedRole}
       {...props}
     >
       {children}

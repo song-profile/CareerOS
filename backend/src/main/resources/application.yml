@@ -10,6 +10,8 @@ server:
 spring:
   application:
     name: careerdock
+  config:
+    import: optional:file:.env[.properties]
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
@@ -43,7 +45,6 @@ spring:
             client-secret: ${GOOGLE_CLIENT_SECRET:dev-google-client-secret}
             redirect-uri: ${GOOGLE_REDIRECT_URI:{baseUrl}/login/oauth2/code/{registrationId}}
             scope:
-              - openid
               - profile
               - email
 
@@ -56,6 +57,15 @@ app:
     # 자격번호 AES-256-GCM 키. Base64로 인코딩한 32바이트 값이다.
     # 아래 기본값은 로컬 개발 전용이며 운영에서는 반드시 CREDENTIAL_ENCRYPTION_KEY로 주입한다.
     credential-encryption-key: ${CREDENTIAL_ENCRYPTION_KEY:Y2FyZWVyZG9jay1sb2NhbC1kZXYta2V5LTMyYnl0ZXM=}
+  google:
+    calendar:
+      # 로그인과 별개의 콜백 경로. 같은 Google Cloud OAuth 클라이언트(GOOGLE_CLIENT_ID/SECRET)에
+      # redirect URI만 추가로 등록해야 한다. {baseUrl} 치환은 Spring의 ClientRegistration 전용이라
+      # 여기서는 쓸 수 없다 — 운영 배포 시 절대경로로 직접 주입한다.
+      redirect-uri: ${GOOGLE_CALENDAR_REDIRECT_URI:http://localhost:8080/api/calendar/oauth/callback}
+      # Google Refresh/Access Token 저장용 AES-256-GCM 키. credential-encryption-key와 다른 키를
+      # 써서, 한쪽 키가 유출되어도 다른 쪽 민감정보까지 함께 노출되지 않게 분리한다.
+      token-encryption-key: ${GOOGLE_TOKEN_ENCRYPTION_KEY:Y2FyZWVyZG9jay1sb2NhbC10b2tlbi1rZXktMzJieXg=}
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:${CORS_ALLOWED_ORIGINS:http://localhost:3000}}
     allowed-methods:
@@ -71,3 +81,9 @@ app:
       - Accept
       - Origin
     allow-credentials: true
+
+logging:
+  level:
+    # google-api-client는 FINE 레벨에서 Authorization 헤더(Bearer 토큰)까지 그대로 찍는다.
+    # 토큰을 절대 로그에 남기지 않기 위해 명시적으로 올려둔다.
+    com.google.api.client: WARN

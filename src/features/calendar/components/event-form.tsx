@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,8 +9,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Toast } from "@/components/ui/toast";
 import { ApplicationStatusBadge } from "@/features/applications/components/application-status-badge";
 import type { ApplicationListItem } from "@/features/applications/types";
+import {
+  createCalendarEvent,
+  updateCalendarEvent,
+} from "@/features/calendar/api/calendar-api";
 import {
   CALENDAR_EVENT_TYPE_LABEL,
   CALENDAR_EVENT_TYPES,
@@ -35,13 +41,15 @@ export interface EventFormProps {
 }
 
 export function EventForm({ applications, event, mode, searchParams }: EventFormProps) {
+  const router = useRouter();
   const [values, setValues] = useState<CalendarEventFormValues>(() =>
     buildInitialValues(event, searchParams),
   );
   const [errors, setErrors] = useState<CalendarEventFormErrors>({});
   const [applicationQuery, setApplicationQuery] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [notice, setNotice] = useState("");
+  const [noticeTone, setNoticeTone] = useState<"success" | "error" | "info">("info");
 
   const filteredApplications = useMemo(() => {
     const normalizedQuery = applicationQuery.trim().toLowerCase();
@@ -84,7 +92,12 @@ export function EventForm({ applications, event, mode, searchParams }: EventForm
     });
   }
 
-  function handleSubmit(eventParam: FormEvent<HTMLFormElement>) {
+  function showNotice(message: string, tone: "success" | "error" | "info" = "info") {
+    setNotice(message);
+    setNoticeTone(tone);
+  }
+
+  async function handleSubmit(eventParam: FormEvent<HTMLFormElement>) {
     eventParam.preventDefault();
     const nextErrors = validateEventForm(values);
     setErrors(nextErrors);
@@ -94,23 +107,26 @@ export function EventForm({ applications, event, mode, searchParams }: EventForm
     }
 
     setSubmitting(true);
-    setSuccessMessage(
-      mode === "create"
-        ? "일정 등록 목업이 완료되었습니다. 실제 API에는 저장되지 않습니다."
-        : "일정 수정 목업이 완료되었습니다. 실제 API에는 저장되지 않습니다.",
-    );
-    setSubmitting(false);
+    try {
+      const savedEvent =
+        mode === "create"
+          ? await createCalendarEvent(values)
+          : await updateCalendarEvent(event?.id ?? "", values);
+      showNotice(mode === "create" ? "일정을 등록했습니다." : "일정을 수정했습니다.", "success");
+      router.push(`/calendar/${savedEvent.id}`);
+      router.refresh();
+    } catch {
+      showNotice(
+        mode === "create" ? "일정 등록에 실패했습니다." : "일정 수정에 실패했습니다.",
+        "error",
+      );
+      setSubmitting(false);
+    }
   }
 
   return (
     <form className="grid gap-6" onSubmit={handleSubmit}>
-      {successMessage ? (
-        <Card variant="highlight">
-          <CardContent>
-            <p className="text-body-medium text-primary-700">{successMessage}</p>
-          </CardContent>
-        </Card>
-      ) : null}
+      {notice ? <Toast tone={noticeTone}>{notice}</Toast> : null}
 
       <Card>
         <CardContent>
@@ -202,7 +218,7 @@ export function EventForm({ applications, event, mode, searchParams }: EventForm
               />
               <Input
                 errorMessage={errors.onlineUrl}
-                helperText="온라인 링크가 있으면 https URL로 입력해 주세요."
+                helperText="온라인 링크가 있으면 http 또는 https URL로 입력해 주세요."
                 label="온라인 URL"
                 onChange={(changeEvent) => updateField("onlineUrl", changeEvent.target.value)}
                 placeholder="https://meet.example.com"
@@ -238,7 +254,7 @@ export function EventForm({ applications, event, mode, searchParams }: EventForm
         >
           취소
         </Link>
-        <Button loading={submitting} type="submit">
+        <Button disabled={submitting} loading={submitting} type="submit">
           저장
         </Button>
       </div>
@@ -334,7 +350,7 @@ function ReminderRuleEditor({
     onChange([
       ...reminderRules,
       {
-        id: `reminder-${minutesBefore}-${Date.now()}`,
+        id: `reminder-${minutesBefore}`,
         minutesBefore,
         enabled: true,
         channel: "INTERNAL",

@@ -1,8 +1,11 @@
 import { PageHeader } from "@/components/layout/page-header";
+import {
+  getCredentialForCurrentUser,
+  getCredentialNumberForCurrentUser,
+} from "@/features/materials/api/server-materials-api";
 import { CredentialForm } from "@/features/materials/components/credential-form";
 import { CredentialNotFoundState } from "@/features/materials/components/materials-states";
 import { toCredentialFormValues } from "@/features/materials/form-defaults";
-import { getCredential } from "@/features/materials/materials-service";
 
 interface EditCredentialPageProps {
   params: Promise<{ credentialId: string }>;
@@ -10,7 +13,7 @@ interface EditCredentialPageProps {
 
 export default async function EditCredentialPage({ params }: EditCredentialPageProps) {
   const { credentialId } = await params;
-  const result = await getCredential(credentialId);
+  const result = await getCredentialForCurrentUser(credentialId);
 
   if (!result.ok) {
     return (
@@ -21,12 +24,22 @@ export default async function EditCredentialPage({ params }: EditCredentialPageP
     );
   }
 
+  const initialValues = toCredentialFormValues(result.value);
+
+  if (result.value.hasCredentialNumber) {
+    const numberResult = await getCredentialNumberForCurrentUser(credentialId);
+
+    if (numberResult.ok) {
+      initialValues.credentialNumber = numberResult.value;
+    }
+  }
+
   return (
     <>
       <PageHeader description={result.value.name} title="자격 수정" />
       <CredentialForm
         credentialId={credentialId}
-        initialValues={toCredentialFormValues(result.value)}
+        initialValues={initialValues}
         mode="edit"
       />
     </>

@@ -36,7 +36,7 @@ export default async function CalendarEditPage({ params }: CalendarEditPageProps
 
   return (
     <>
-      <PageHeader description="일정 정보를 수정합니다. 실제 API 저장은 아직 연결하지 않습니다." title="일정 수정" />
+      <PageHeader description="일정 정보를 수정합니다." title="일정 수정" />
       {applicationsResult.ok ? (
         <Suspense fallback={<EventFormSkeleton />}>
           <LazyEventForm

@@ -26,6 +26,7 @@ export function toCalendarEventViewModel(dto: CalendarEventDto): CalendarEvent {
     memo: dto.memo ?? "",
     googleEventId: dto.googleEventId ?? undefined,
     syncStatus: dto.syncStatus,
+    syncFailureReason: dto.syncFailureReason ?? undefined,
     reminderRules: dto.reminderRules.map(toCalendarReminderRuleViewModel),
     createdAt: new Date(dto.createdAt),
     updatedAt: new Date(dto.updatedAt),
@@ -45,7 +46,9 @@ export function toCalendarEventRequestDto(
     location: emptyToNull(values.location),
     onlineUrl: emptyToNull(values.onlineUrl),
     memo: emptyToNull(values.memo),
-    reminderRules: values.reminderRules.map(toCalendarReminderRuleRequestDto),
+    reminderRules: values.remindersEnabled
+      ? values.reminderRules.map(toCalendarReminderRuleRequestDto)
+      : [],
   };
 }
 

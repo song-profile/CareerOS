@@ -41,6 +41,7 @@ export interface CalendarEvent {
   reminderRules: CalendarReminderRule[];
   googleEventId?: string;
   syncStatus?: CalendarSyncStatus;
+  syncFailureReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }

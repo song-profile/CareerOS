@@ -5,5 +5,12 @@ interface SkeletonBlockProps {
 }
 
 export function SkeletonBlock({ className }: SkeletonBlockProps) {
-  return <div className={cn("rounded-control bg-neutral-100", className)} />;
+  return (
+    <div
+      aria-busy="true"
+      aria-label="불러오는 중"
+      className={cn("rounded-control bg-neutral-100", className)}
+      role="status"
+    />
+  );
 }

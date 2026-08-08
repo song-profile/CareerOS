@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +10,11 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Toast } from "@/components/ui/toast";
+import {
+  deleteFile,
+  downloadFileBlob,
+  uploadMaterialFile,
+} from "@/features/materials/api/file-api";
 import { MaterialFileTypeBadge } from "@/features/materials/components/material-file-type-badge";
 import {
   filterMaterialFiles,
@@ -18,6 +24,7 @@ import {
 } from "@/features/materials/file-utils";
 import type {
   MaterialFile,
+  MaterialFileType,
   MaterialFileTypeFilter,
 } from "@/features/materials/types";
 
@@ -26,33 +33,74 @@ export interface MaterialFileListProps {
 }
 
 export function MaterialFileList({ files }: MaterialFileListProps) {
+  const [items, setItems] = useState<MaterialFile[]>(files);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<MaterialFileTypeFilter>("전체");
   const [previewFile, setPreviewFile] = useState<MaterialFile | null>(files[0] ?? null);
   const [notice, setNotice] = useState("");
+  const [noticeTone, setNoticeTone] = useState<"success" | "error" | "info">("info");
   const [deleteTarget, setDeleteTarget] = useState<MaterialFile | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   const visibleFiles = useMemo(
-    () => filterMaterialFiles(files, searchQuery, typeFilter),
-    [files, searchQuery, typeFilter],
+    () => filterMaterialFiles(items, searchQuery, typeFilter),
+    [items, searchQuery, typeFilter],
   );
 
-  function showNotice(message: string) {
+  function showNotice(message: string, tone: "success" | "error" | "info" = "info") {
     setNotice(message);
+    setNoticeTone(tone);
   }
 
   function handlePreview(file: MaterialFile) {
     setPreviewFile(file);
-    showNotice("파일 미리보기는 API와 S3 연동 단계에서 제공됩니다.");
+    showNotice("다운로드 보안 정책상 브라우저 내 미리보기는 제공하지 않습니다.");
   }
 
-  function handleDownload(file: MaterialFile) {
+  async function handleDownload(file: MaterialFile) {
     setPreviewFile(file);
-    showNotice("다운로드 API 연동 전입니다. 실제 파일은 내려받지 않습니다.");
+    try {
+      const blob = await downloadFileBlob(file.id);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = file.fileName;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      showNotice("파일 다운로드를 시작했습니다.", "success");
+    } catch {
+      showNotice("파일 다운로드에 실패했습니다.", "error");
+    }
   }
 
-  function handleUpload() {
-    showNotice("파일 업로드는 S3 연동 전입니다. 현재는 화면 placeholder만 제공합니다.");
+  async function handleUpload(values: UploadFormValues): Promise<boolean> {
+    try {
+      const uploaded = await uploadMaterialFile(
+        values.file,
+        values.type,
+        values.displayName,
+      );
+      setItems((current) => [uploaded, ...current]);
+      setPreviewFile(uploaded);
+      showNotice("파일을 업로드했습니다.", "success");
+      return true;
+    } catch {
+      showNotice("파일 업로드에 실패했습니다.", "error");
+      return false;
+    }
+  }
+
+  async function handleDelete(file: MaterialFile) {
+    try {
+      await deleteFile(file.id);
+      setItems((current) => current.filter((item) => item.id !== file.id));
+      setPreviewFile((current) => current?.id === file.id ? null : current);
+      setDeleteTarget(null);
+      showNotice("파일을 삭제했습니다.", "success");
+    } catch {
+      setDeleteTarget(null);
+      showNotice("파일 삭제에 실패했습니다.", "error");
+    }
   }
 
   return (
@@ -68,7 +116,7 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
                     지원서에 반복해서 첨부하는 파일을 유형별로 확인합니다.
                   </p>
                 </div>
-                <Button className="w-full sm:w-fit" onClick={handleUpload}>
+                <Button className="w-full sm:w-fit" onClick={() => setUploadDialogOpen(true)}>
                   파일 업로드
                 </Button>
               </div>
@@ -107,13 +155,13 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
                 <MaterialFileTable
                   files={visibleFiles}
                   onDelete={setDeleteTarget}
-                  onDownload={handleDownload}
+                  onDownload={(file) => void handleDownload(file)}
                   onPreview={handlePreview}
                 />
                 <MaterialFileMobileList
                   files={visibleFiles}
                   onDelete={setDeleteTarget}
-                  onDownload={handleDownload}
+                  onDownload={(file) => void handleDownload(file)}
                   onPreview={handlePreview}
                 />
               </>
@@ -127,17 +175,21 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
       </div>
 
       {notice ? (
-        <Toast widthClassName="sm:w-[380px]">{notice}</Toast>
+        <Toast tone={noticeTone} widthClassName="sm:w-[380px]">{notice}</Toast>
+      ) : null}
+
+      {uploadDialogOpen ? (
+        <MaterialFileUploadDialog
+          onClose={() => setUploadDialogOpen(false)}
+          onUpload={handleUpload}
+        />
       ) : null}
 
       {deleteTarget ? (
         <MaterialFileDeleteDialog
           file={deleteTarget}
           onClose={() => setDeleteTarget(null)}
-          onDeletePlaceholder={() => {
-            showNotice("파일 삭제 API 연동 전입니다. 실제 파일은 삭제되지 않습니다.");
-            setDeleteTarget(null);
-          }}
+          onDelete={() => void handleDelete(deleteTarget)}
         />
       ) : null}
     </>
@@ -278,7 +330,7 @@ function MaterialFilePreview({ file }: { file: MaterialFile | null }) {
                 <p className="font-mono text-mono text-neutral-600">
                   {formatFileSize(file.size)}
                 </p>
-                <p className="text-caption text-neutral-600">Preview Placeholder</p>
+                <p className="text-caption text-neutral-600">미리보기 미지원</p>
               </div>
             ) : (
               <p className="text-body text-neutral-600">미리볼 파일을 선택하세요.</p>
@@ -308,17 +360,17 @@ function MaterialFileEmptyState() {
 function MaterialFileDeleteDialog({
   file,
   onClose,
-  onDeletePlaceholder,
+  onDelete,
 }: {
   file: MaterialFile;
   onClose: () => void;
-  onDeletePlaceholder: () => void;
+  onDelete: () => void;
 }) {
   return (
     <Dialog
       description={
         <p className="break-words">
-          {file.fileName} 삭제는 실제 파일 API와 S3 연동 후 처리됩니다. 현재 화면에서는 파일이 삭제되지 않습니다.
+          {file.fileName} 파일을 삭제합니다. 지원 건에 연결된 파일이면 서버에서 거절될 수 있습니다.
         </p>
       }
       footer={
@@ -326,13 +378,106 @@ function MaterialFileDeleteDialog({
           <Button onClick={onClose} variant="secondary">
             닫기
           </Button>
-          <Button onClick={onDeletePlaceholder} variant="danger">
-            삭제 예정
+          <Button onClick={onDelete} variant="danger">
+            삭제
           </Button>
         </div>
       }
       onClose={onClose}
-      title="삭제 기능 준비 중"
+      title="파일 삭제"
     />
+  );
+}
+
+interface UploadFormValues {
+  file: File;
+  type: MaterialFileType;
+  displayName?: string;
+}
+
+function MaterialFileUploadDialog({
+  onClose,
+  onUpload,
+}: {
+  onClose: () => void;
+  onUpload: (values: UploadFormValues) => Promise<boolean>;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [type, setType] = useState<MaterialFileType>("기타");
+  const [displayName, setDisplayName] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    setFile(event.target.files?.[0] ?? null);
+    setError("");
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!file) {
+      setError("업로드할 파일을 선택해 주세요.");
+      fileInputRef.current?.focus();
+      return;
+    }
+
+    setSubmitting(true);
+    const uploaded = await onUpload({
+      file,
+      type,
+      displayName: displayName.trim() || undefined,
+    });
+    setSubmitting(false);
+
+    if (uploaded) {
+      onClose();
+    }
+  }
+
+  return (
+    <Dialog
+      className="max-w-lg"
+      description="파일과 분류를 선택해 보관함에 업로드합니다."
+      onClose={onClose}
+      title="파일 업로드"
+    >
+      <form className="grid gap-4" onSubmit={handleSubmit}>
+        <Input
+          ref={fileInputRef}
+          errorMessage={error}
+          label="파일"
+          onChange={handleFileChange}
+          required
+          type="file"
+        />
+        <Select
+          label="파일 유형"
+          onChange={(event) => setType(event.target.value as MaterialFileType)}
+          options={MATERIAL_FILE_TYPE_FILTERS.filter((filter) => filter !== "전체").map(
+            (filter) => ({
+              label: filter,
+              value: filter,
+            }),
+          )}
+          value={type}
+        />
+        <Input
+          helperText="비워 두면 원본 파일명을 사용합니다."
+          label="표시 이름"
+          onChange={(event) => setDisplayName(event.target.value)}
+          value={displayName}
+        />
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button disabled={submitting} onClick={onClose} type="button" variant="secondary">
+            취소
+          </Button>
+          <Button loading={submitting} type="submit">
+            업로드
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

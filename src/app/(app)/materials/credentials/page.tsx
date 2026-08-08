@@ -1,11 +1,11 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkButton } from "@/components/ui/link-button";
+import { getCredentialsForCurrentUser } from "@/features/materials/api/server-materials-api";
 import { CredentialList } from "@/features/materials/components/credential-list";
 import { MaterialsErrorState } from "@/features/materials/components/materials-states";
-import { getCredentials } from "@/features/materials/materials-service";
 
 export default async function CredentialsPage() {
-  const result = await getCredentials();
+  const result = await getCredentialsForCurrentUser();
 
   return (
     <>

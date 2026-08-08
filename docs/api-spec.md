@@ -102,9 +102,14 @@ app:
 | 404 | `NOT_FOUND` | 데이터 없음 또는 다른 사용자 소유 |
 | 409 | `CONFLICT` | 상태 충돌(제출본 재수정, 연결된 원본 삭제 시도 등) |
 | 409 | `DUPLICATE_RESOURCE` | 중복 데이터(중복 연결, 중복 알림 규칙, 중복 태그 이름) |
+| 409 | `GOOGLE_NOT_CONNECTED` | Google Calendar 연결 없음 |
+| 409 | `GOOGLE_TOKEN_EXPIRED` | Google Calendar 토큰 만료 또는 재동의 필요 |
+| 429 | `GOOGLE_RATE_LIMITED` | Google Calendar API rate limit |
+| 502 | `GOOGLE_API_ERROR` | Google Calendar API 처리 실패 |
 | 500 | `INTERNAL_SERVER_ERROR` | 내부 서버 오류 |
 
 서버 Stack Trace, SQL, DB 구조, 내부 클래스명은 응답에 포함하지 않는다(`GlobalExceptionHandler`의 `Exception.class` 핸들러가 항상 고정 메시지만 반환).
+현재 코드에는 `422 Unprocessable Entity`를 반환하는 경로가 없다. Bean Validation과 잘못된 요청은 `400`, 상태 충돌은 `409`로 응답한다.
 
 ## 날짜 형식
 
@@ -157,6 +162,97 @@ app:
 ```json
 { "status": "UP" }
 ```
+
+## Dashboard API
+
+대시보드 첫 화면은 지원 건 API와 캘린더 API를 여러 번 호출하지 않고 Summary endpoint 한 번으로 필요한 핵심 데이터를 가져온다. 응답은 화면 표시용 최소 필드만 포함하며, Application/RecruitmentEvent Entity 전체를 반환하지 않는다.
+
+### Summary 조회
+
+- Method: `GET`
+- URL: `/api/dashboard/summary`
+- 인증: 필요
+- Query Parameter: 없음. `userId`를 받지 않는다.
+- 성공 Status: `200 OK`
+- 오류 Status:
+  - `401 UNAUTHORIZED`: 로그인 세션 없음
+
+조회 기준:
+
+- 현재 시각은 서버 `Instant.now()` 기준이다.
+- 이번 주 마감(`weeklyDeadlineCount`): `deadlineAt`이 현재 시각 이상, 현재 시각 + 7일 이하인 지원 건 수.
+- 임박한 지원 마감(`upcomingDeadlines`): `deadlineAt`이 현재 시각 이상인 지원 건 중 마감 오름차순 상위 3개.
+- 마감 집계와 임박 마감 목록은 `deadlineAt = null`인 지원 건을 제외한다.
+- 마감 집계와 임박 마감 목록은 종료 상태인 `FINAL_ACCEPTED`, `FINAL_REJECTED`를 제외한다. 제출 완료, 서류, 테스트, 면접 등 아직 후속 행동 가능성이 있는 상태는 포함한다.
+- 작성 중 지원서(`draftingApplicationCount`): `status = WRITING`인 지원 건 수. 마감일 유무와 무관하게 계산한다.
+- 다가오는 일정 수(`upcomingEventCount`): `startAt`이 현재 시각 초과, 현재 시각 + 14일 이하인 일정 수.
+- 다가오는 일정 목록(`upcomingEvents`): `startAt`이 현재 시각 초과인 일정 중 시작일시 오름차순 상위 5개.
+- 모든 데이터는 세션의 `CareerdockOAuth2User` → `LoginUser.id()`에서 얻은 내부 사용자 ID 기준으로 필터링한다.
+
+Response JSON:
+
+```json
+{
+  "summary": {
+    "weeklyDeadlineCount": 2,
+    "upcomingEventCount": 2,
+    "draftingApplicationCount": 3
+  },
+  "upcomingDeadlines": [
+    {
+      "applicationId": 1,
+      "companyName": "KB국민은행",
+      "positionName": "IT 개발",
+      "deadlineAt": "2026-08-10T09:00:00Z",
+      "status": "WRITING",
+      "daysUntil": 2
+    }
+  ],
+  "upcomingEvents": [
+    {
+      "eventId": 10,
+      "applicationId": 1,
+      "companyName": "KB국민은행",
+      "positionName": "IT 개발",
+      "eventType": "CODING_TEST",
+      "title": "코딩테스트",
+      "startAt": "2026-08-12T01:00:00Z",
+      "endAt": "2026-08-12T03:00:00Z",
+      "allDay": false,
+      "location": "온라인"
+    }
+  ]
+}
+```
+
+필드 설명:
+
+| 필드 | 타입 | Nullable | 설명 |
+|---|---:|---:|---|
+| `summary.weeklyDeadlineCount` | number | No | 현재 시각부터 7일 이내 마감 지원 건 수 |
+| `summary.upcomingEventCount` | number | No | 현재 시각부터 14일 이내 시작하는 일정 수 |
+| `summary.draftingApplicationCount` | number | No | `WRITING` 상태 지원 건 수 |
+| `upcomingDeadlines[].applicationId` | number | No | 지원 건 ID |
+| `upcomingDeadlines[].companyName` | string | No | 회사명 |
+| `upcomingDeadlines[].positionName` | string | No | 직무명 |
+| `upcomingDeadlines[].deadlineAt` | string | No | 마감 시각. ISO-8601 `Instant` 문자열 |
+| `upcomingDeadlines[].status` | `ApplicationStatus` | No | 지원 상태 Enum |
+| `upcomingDeadlines[].daysUntil` | number | No | 한국 날짜 기준 D-day 계산값. 오늘이면 `0`, 내일이면 `1` |
+| `upcomingEvents[].eventId` | number | No | 일정 ID |
+| `upcomingEvents[].applicationId` | number | Yes | 연결된 지원 건 ID. 개인 일정이면 `null` |
+| `upcomingEvents[].companyName` | string | Yes | 연결된 지원 건 회사명. 개인 일정이면 `null` |
+| `upcomingEvents[].positionName` | string | Yes | 연결된 지원 건 직무명. 개인 일정이면 `null` |
+| `upcomingEvents[].eventType` | `EventType` | No | 일정 종류 Enum |
+| `upcomingEvents[].title` | string | No | 일정 제목 |
+| `upcomingEvents[].startAt` | string | No | 시작 시각. ISO-8601 `Instant` 문자열 |
+| `upcomingEvents[].endAt` | string | No | 종료 시각. ISO-8601 `Instant` 문자열 |
+| `upcomingEvents[].allDay` | boolean | No | 종일 일정 여부 |
+| `upcomingEvents[].location` | string | Yes | 장소. 없으면 `null` |
+
+Enum:
+
+- `ApplicationStatus`: `INTERESTED`, `WRITING`, `SUBMITTED`, `DOCUMENT_RESULT`, `TEST`, `INTERVIEW`, `FINAL_ACCEPTED`, `FINAL_REJECTED`
+- `EventType`: `APPLICATION_DEADLINE`, `APTITUDE_TEST`, `NCS_TEST`, `TECHNICAL_TEST`, `CODING_TEST`, `AI_ASSESSMENT`, `ASSIGNMENT`, `FIRST_INTERVIEW`, `SECOND_INTERVIEW`, `FINAL_INTERVIEW`, `RESULT_ANNOUNCEMENT`, `PERSONAL_PREPARATION`
 
 ## Auth API
 
@@ -664,7 +760,7 @@ S3 presigned URL은 쓰지 않는다. 업로드·다운로드 모두 백엔드�
 
 ## Calendar API
 
-Google Calendar 연동은 MVP 2다. 지금은 내부 일정과 알림 규칙만 저장·조회한다. 실제 알림 발송 Scheduler는 구현하지 않았다(규칙 저장·조회까지만).
+내부 일정과 알림 규칙을 저장·조회한다. Google Calendar 연결 API도 현재 백엔드에 존재한다. 사용자가 Google Calendar를 연결한 뒤 일정이 생성·수정·삭제되면 CareerDock 전용 Google Calendar에 best-effort로 동기화한다. Google 동기화 실패는 CareerDock 일정 저장 자체를 실패시키지 않고 `syncStatus`/`syncFailureReason`에 남긴다. 실제 내부 알림 발송 Scheduler는 구현하지 않았다(규칙 저장·조회까지만).
 
 ### 일정 종류
 
@@ -672,7 +768,12 @@ Google Calendar 연동은 MVP 2다. 지금은 내부 일정과 알림 규칙만 
 
 ### 동기화 상태
 
-`NOT_CONNECTED` `PENDING` `SYNCED` `FAILED` — Google Calendar 연동 전까지 모든 일정은 `NOT_CONNECTED`로 저장되고 `googleEventId`는 항상 `null`이다.
+`NOT_CONNECTED` `PENDING` `SYNCED` `FAILED`
+
+- `NOT_CONNECTED`: Google Calendar 연결이 없거나 아직 push되지 않음
+- `PENDING`: Calendar 연결 진행 또는 동기화 대기 상태
+- `SYNCED`: Google Calendar에 반영됨
+- `FAILED`: Google Calendar push 실패. 실패 이유는 `syncFailureReason`에 코드 문자열로 남는다.
 
 ### 알림 채널과 기본 규칙
 
@@ -747,6 +848,7 @@ Google Calendar 연동은 MVP 2다. 지금은 내부 일정과 알림 규칙만 
   "memo": "포트폴리오 지참",
   "googleEventId": null,
   "syncStatus": "NOT_CONNECTED",
+  "syncFailureReason": null,
   "reminderRules": [
     { "id": 1, "minutesBefore": 1440, "channel": "INTERNAL", "enabled": true }
   ],
@@ -760,6 +862,114 @@ Google Calendar 연동은 MVP 2다. 지금은 내부 일정과 알림 규칙만 
 - `GET /api/calendar/events/{id}` — 인증 필요. 성공 `200`. 오류 `404 NOT_FOUND`.
 - `PATCH /api/calendar/events/{id}` — 인증 필요. 성공 `200`. 오류 `400`/`404`/`409`. 등록과 같은 형식의 **전체 교체**. `reminderRules`는 매번 통째로 바뀐다.
 - `DELETE /api/calendar/events/{id}` — 인증 필요. 성공 `204`. 오류 `404`. 연결된 알림 규칙도 함께 지워진다(`ON DELETE CASCADE`).
+
+### Google Calendar 연결 시작
+
+- `POST /api/calendar/connect`
+- 인증: 필요
+- Query: 없음
+- Request Body: 없음
+- 성공: `200`, `CalendarConnectResponse`
+- 동작: 서버 세션에 Calendar OAuth `state`를 저장하고, 프론트가 브라우저를 이동시킬 Google 동의 URL을 반환한다. 로그인용 Google OAuth와 별도 scope(`CalendarScopes.CALENDAR`)를 쓴다.
+- 로컬 Google Cloud Console Authorized redirect URI에 `http://localhost:8080/api/calendar/oauth/callback`을 반드시 등록해야 한다. 로그인용 `http://localhost:8080/login/oauth2/code/google`만 등록되어 있으면 Google이 `redirect_uri_mismatch`로 차단한다.
+
+응답:
+
+```json
+{
+  "authorizationUrl": "https://accounts.google.com/o/oauth2/auth?..."
+}
+```
+
+### Google Calendar OAuth Callback
+
+- `GET /api/calendar/oauth/callback`
+- 인증: 필요. 이미 CareerDock에 로그인된 세션에서만 처리한다.
+- Query: `code`(선택), `state`(선택)
+- Response Body: 없음. 항상 프론트 Calendar 설정 화면으로 `302 Redirect`.
+- 성공 리다이렉트: `{FRONTEND_URL}/settings/calendar?connected=true`
+- 실패 리다이렉트: `{FRONTEND_URL}/settings/calendar?connected=false&reason={REASON}`
+- 실패 `reason`:
+  - `INVALID_REQUEST`: state 불일치, code 누락, 만료된 OAuth 요청, 또는 Google token exchange의 `invalid_request`/`invalid_grant`
+  - `GOOGLE_AUTH_DENIED`: 사용자가 동의를 취소했거나 Google 계정/조직 정책에서 동의가 차단됨
+  - `NO_REFRESH_TOKEN`: refresh token이 발급되지 않아 재동기화 불가
+  - `GOOGLE_TOKEN_EXCHANGE_FAILED`: Google OAuth token exchange 실패
+  - `GOOGLE_CALENDAR_API_DISABLED`: Google Cloud 프로젝트에서 Google Calendar API 비활성화
+  - `GOOGLE_CALENDAR_FORBIDDEN`: Google Calendar API 접근 권한 없음. 학교/조직 Workspace 정책 차단 가능
+  - `GOOGLE_API_ERROR`: 그 외 Google Calendar API 오류
+  - `CONNECT_FAILED`: 분류되지 않은 연결 실패
+- Secret/Token은 응답에 절대 포함하지 않는다. refresh/access token은 서버에서 암호화해 저장한다.
+
+### Google Calendar 연결 상태
+
+- `GET /api/calendar/status`
+- 인증: 필요
+- Query: 없음
+- 성공: `200`, `CalendarStatusResponse`
+
+응답:
+
+```json
+{
+  "connected": true,
+  "status": "SYNCED",
+  "connectedAt": "2026-08-08T00:00:00Z",
+  "lastSyncedAt": "2026-08-08T00:10:00Z",
+  "lastSyncError": null,
+  "eventCounts": {
+    "NOT_CONNECTED": 0,
+    "PENDING": 0,
+    "SYNCED": 3,
+    "FAILED": 1
+  }
+}
+```
+
+`connected=false`면 `status`, `connectedAt`, `lastSyncedAt`, `lastSyncError`는 `null`이고 `eventCounts`는 사용자의 일정별 동기화 상태 count를 담는다.
+
+### Google Calendar 재동기화
+
+- `POST /api/calendar/sync`
+- 인증: 필요
+- Query/Request Body: 없음
+- 성공: `200`, `CalendarSyncResponse`
+- 오류: `409 GOOGLE_NOT_CONNECTED`(Calendar 연결 없음)
+- 동작: `NOT_CONNECTED`, `FAILED` 일정 중 최대 50개를 Google Calendar에 재시도한다.
+
+응답:
+
+```json
+{
+  "attempted": 2,
+  "synced": 1,
+  "failed": 1
+}
+```
+
+### Google Calendar 연결 해제
+
+- `DELETE /api/calendar/disconnect`
+- 인증: 필요
+- 성공: `204`
+- 동작: Google refresh token revoke를 best-effort로 시도하고 로컬 연결을 삭제한다. 이미 연결이 없어도 `204`다. 기존 `SYNCED`/`FAILED` 일정은 `NOT_CONNECTED`로 되돌리고 `googleEventId`를 비운다.
+
+### Google Calendar 테스트 이벤트 생성
+
+- `POST /api/calendar/test-event`
+- 인증: 필요
+- Query/Request Body: 없음
+- 성공: `200`, `TestEventResponse`
+- 오류: `409 GOOGLE_NOT_CONNECTED`(Calendar 연결 없음 또는 전용 Calendar 미준비)
+- 동작: `recruitment_events`에는 저장하지 않고 Google Calendar에 연결 확인용 throwaway 이벤트만 생성한다.
+
+응답:
+
+```json
+{
+  "googleEventId": "google-event-id",
+  "htmlLink": "https://calendar.google.com/event?eid=..."
+}
+```
 
 ## Application Resources API
 
@@ -850,6 +1060,117 @@ Google Calendar 연동은 MVP 2다. 지금은 내부 일정과 알림 규칙만 
 
 ---
 
+# Notifications API
+
+앱 내부 알림을 조회하고 읽음/삭제 처리한다. 모든 endpoint는 인증이 필요하며, 요청 파라미터로 `userId`를 받지 않는다. 현재 로그인한 Spring Security Principal의 내부 사용자 ID 기준으로만 조회한다.
+
+## Enum
+
+`NotificationType`
+
+- `APPLICATION_DEADLINE`
+- `INTERVIEW`
+- `CODING_TEST`
+- `CALENDAR_EVENT`
+- `CREDENTIAL_EXPIRATION`
+- `SYSTEM`
+
+## Response
+
+```json
+{
+  "id": 1,
+  "type": "APPLICATION_DEADLINE",
+  "title": "지원 마감 D-7",
+  "message": "KB국민은행 IT 개발 지원 마감이 D-7입니다.",
+  "linkUrl": "/applications/10",
+  "relatedResourceType": "APPLICATION",
+  "relatedResourceId": 10,
+  "read": false,
+  "readAt": null,
+  "createdAt": "2026-08-08T00:00:00Z"
+}
+```
+
+날짜 형식:
+
+- `createdAt`, `readAt`: ISO-8601 Instant 문자열
+- `readAt`: 읽지 않은 알림이면 `null`
+- `linkUrl`, `relatedResourceType`, `relatedResourceId`: 시스템 알림처럼 연결 대상이 없으면 `null`
+
+## 목록 조회
+
+- Method: `GET`
+- URL: `/api/notifications`
+- 인증: 필요
+- Query Parameter:
+  - `unreadOnly`: boolean, 선택, 기본 `false`
+  - `limit`: number, 선택, 기본 20, 최대 50
+- 성공: `200 OK`
+- 응답: `NotificationResponse[]`, `createdAt desc, id desc`
+- 오류: `401 UNAUTHORIZED`
+
+## 안읽은 개수
+
+- Method: `GET`
+- URL: `/api/notifications/unread-count`
+- 인증: 필요
+- 성공: `200 OK`
+
+```json
+{
+  "unreadCount": 3
+}
+```
+
+## 읽음 처리
+
+- Method: `PATCH`
+- URL: `/api/notifications/{id}/read`
+- 인증: 필요
+- 성공: `200 OK`
+- 응답: `NotificationResponse`
+- 오류: `401 UNAUTHORIZED`, `404 NOT_FOUND`
+
+다른 사용자의 알림 ID를 요청하면 `404 NOT_FOUND`로 응답해 존재 여부를 노출하지 않는다.
+
+## 전체 읽음
+
+- Method: `PATCH`
+- URL: `/api/notifications/read-all`
+- 인증: 필요
+- 성공: `200 OK`
+- 응답: `NotificationUnreadCountResponse`
+- 오류: `401 UNAUTHORIZED`
+
+## 삭제
+
+- Method: `DELETE`
+- URL: `/api/notifications/{id}`
+- 인증: 필요
+- 성공: `204 No Content`
+- 오류: `401 UNAUTHORIZED`, `404 NOT_FOUND`
+
+## Scheduler
+
+매일 `Asia/Seoul` 오전 9시에 D-7, D-3, D-1, 당일 대상 알림을 생성한다.
+
+- 지원 마감: `deadlineAt`이 대상 날짜에 포함되고 최종 합격/불합격 상태가 아닌 지원 건
+- 캘린더 일정: `startAt`이 대상 날짜에 포함되는 일정
+- 자격증 만료: `permanent=false`, `expiresAt`이 대상 날짜인 자격
+
+중복 방지:
+
+- `notifications(user_id, dedupe_key)` 유니크 제약
+- 같은 사용자, 같은 원본 리소스, 같은 대상 날짜 알림은 한 번만 생성된다.
+
+Email:
+
+- 실제 발송은 `NotificationEmailSender` interface로 분리했다.
+- 현재 구현은 `NoopNotificationEmailSender`이며 앱 내부 알림만 생성한다.
+
+---
+
 # 프론트-백엔드 타입 비교표
 
 10단계에서 `src/features/{applications,essays,materials,calendar,auth}`의 `types.ts`/`api/dto.ts`/`api/mapper.ts`/`mock-data.ts`를 백엔드 DTO와 전부 대조했다. 결론: **enum 값과 필드 이름은 DTO 레벨에서 전부 일치한다.** 실제로 손볼 지점은 거의 다 프론트 view-model(화면용 타입)이 DTO의 일부만 따라가고 있는 것이지, 백엔드가 뭘 잘못 내려주는 게 아니다.
@@ -876,15 +1197,16 @@ Google Calendar 연동은 MVP 2다. 지금은 내부 일정과 알림 규칙만 
 | 외부 링크 | `LinkTypeDto` | 9개 | `LinkType` | 9개, 완전 일치 | 예(mapper crosswalk 존재) | 없음(DTO 레벨) | — |
 | 외부 링크 | `ExternalLinkType`(view) | 7개(`DEPLOYED_SERVICE`/`PROJECT_REPOSITORY` 없음) | — | — | — | **있음(프론트 전용)** | 두 값으로 등록하면 표시가 깨지진 않지만(문자열 그대로 안 보여줄 뿐) UI에서 선택할 수 없음. 프론트가 원하면 `ExternalLinkType`에 값 추가 |
 | 외부 링크 | `ExternalLinkRequestDto.visibility` | 항상 `"PRIVATE"` 하드코딩 전송 | `ExternalLinkRequest.visibility` | 값 그대로 저장 | — | 없음(의도된 설계, 공개 전환 UI가 아직 없음) | — |
-| 캘린더 | `CalendarEventType`/`CalendarSyncStatus`/`ReminderChannel` | 각각 12/4/3개 | `EventType`/`SyncStatus`/`ReminderChannel` | 동일 12/4/3개, 완전 일치(8단계에서 프론트 리터럴을 그대로 백엔드에 옮김) | 예(id `string(dto.id)` 변환만 필요, 프론트에 아직 mapper 없음) | 없음(값 자체는 일치) | **DTO/mapper 자체가 없음** — 프론트 `calendar/api/calendar-api.ts`가 여전히 `contractStatus: "pending"`이고 `GET /api/calendar/events` 등 5개 endpoint가 "백엔드 명세 없음"이라고 적혀 있음(8단계 이전 상태로 stale). 프론트 18~20단계에서 `calendar/api/dto.ts`+`api/mapper.ts` 신규 작성 필요 |
-| 캘린더 | `CalendarEvent.applicationId/id` | `string` | `RecruitmentEventResponse.id/applicationId` | `Long` | 예(신규 작성 시 `String()` 변환 추가) | 없음 | 위와 동일 |
+| 캘린더 | `CalendarEventType`/`CalendarSyncStatus`/`ReminderChannel` | 각각 12/4/3개 | `EventType`/`SyncStatus`/`ReminderChannel` | 동일 12/4/3개, 완전 일치 | 예(`calendar/api/mapper.ts`) | 없음 | 없음 |
+| 캘린더 | `CalendarEvent.applicationId/id` | `string` | `RecruitmentEventResponse.id/applicationId` | `Long` | 예(`String()` 변환 있음) | 없음 | 없음 |
+| 캘린더 | Google Calendar 연결 API | `calendar-api.ts` 함수와 `/settings/calendar` 화면 존재 | `/api/calendar/connect/status/sync/disconnect/test-event` | 실제 Controller 존재 | 예 | 없음 | 없음 |
 | 인증 | `CurrentUserDto.provider` | `"GOOGLE"` | `CurrentUserResponse.provider` | `AuthProvider.GOOGLE` → `"GOOGLE"` | 예(mapper가 `"Google"`로 하드코딩 변환) | 없음(의도된 표시용 변환) | — |
 | 공통 | 모든 DTO의 `id` 계열 필드 | `number` | 전 도메인 `Long` | JSON number로 직렬화 | 예, 전 도메인에서 `String(dto.id)` 패턴 이미 확립됨 | 없음 | — |
 | 공통 | 날짜(`Instant`) 필드 | `string`(mapper가 `Date`로 변환) | ISO-8601 `...Z` | 그대로 | 예 | 없음 | — |
 | 공통 | 날짜(`LocalDate`) 필드 | `string` | `2024-06-21` | 그대로 | 예 | 없음 | — |
 | 공통 | nullable 필드 | `T \| null` | `null` 포함, 키 생략 안 됨 | 그대로 | 아니오 | 없음 | — |
 
-추가로(비교표에 넣기엔 코드 품질 메모라 별도 기재): `src/features/materials/materials-service.ts`는 실제 화면에서 쓰이는데도 `mock-data.ts`만 읽고 위 API들을 전혀 호출하지 않는다. 그 파일 주석은 `GET /api/material-files`, `GET /api/material-links`라는, 실제로 존재한 적 없는 경로를 "명세 확정 필요"로 적어 두고 있다 — 실제 경로는 `GET /api/files`, `GET /api/external-links`다. 20단계에서 이 서비스 레이어를 실제 API로 바꿀 때 이 주석에 낚이지 않아야 한다.
+추가로(비교표에 넣기엔 코드 품질 메모라 별도 기재): `src/features/materials/materials-service.ts`는 실제 화면에서 쓰이는데도 `mock-data.ts`만 읽고 위 API들을 전혀 호출하지 않는다. 주석은 실제 경로인 `GET /api/files`, `GET /api/external-links` 기준으로 갱신했다.
 
 ---
 
@@ -908,33 +1230,25 @@ Google Calendar 연동은 MVP 2다. 지금은 내부 일정과 알림 규칙만 
 
 # 실행한 테스트
 
-아래는 이 문서를 작성하며 실제로 실행한 명령과 결과다. 실행하지 않은 항목은 "실행하지 않음"으로 명시한다.
+아래는 2026-08-08 API 계약 동기화 작업 중 실제로 실행한 명령과 결과다. 실행하지 않은 항목은 성공으로 기록하지 않는다.
 
-- `./gradlew clean test build` — **실행함**, `BUILD SUCCESSFUL`, 8 tasks 실행. Testcontainers가 PostgreSQL 16-alpine 컨테이너를 실제로 띄워 전체 스위트를 돌렸다(Colima 환경, `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE` 필요 — README 참고).
-- 전체 테스트: **73개 통과, 0 실패**(13개 테스트 클래스 + 신규 `MvpScenarioIntegrationTest` 1개).
-- `./gradlew build` 단독 재실행 — **실행함**, 성공.
-- 로컬 PostgreSQL(Docker 밖 실제 인스턴스)에 대한 수동 curl 테스트 — **실행하지 않음**. Testcontainers가 매 테스트마다 진짜 PostgreSQL 컨테이너를 새로 검증하므로 커버리지는 있지만, `docker compose up -d postgres` + `./gradlew bootRun` 조합의 수동 curl 시나리오는 별도로 돌리지 않았다.
-- Google 실계정을 이용한 브라우저 OAuth 왕복 — **실행하지 않음**(자동화 불가 영역, 코드 리뷰와 `OAuthUserProvisionerTest`로만 검증).
+- `npm run typecheck` — **성공**
+- `npm run lint` — **성공**
+- `npm run build` — **성공**
+- `./gradlew test` — **실패**. Testcontainers PostgreSQL로 전체 스위트를 실행했고, 115개 중 3개 실패.
+- `./gradlew build` — **실패**. `test` 단계에서 같은 3개 실패.
+- 로컬 PostgreSQL(Docker Compose) + `bootRun` 수동 curl — **이번 작업에서는 실행하지 않음**
+- Google 실계정을 이용한 브라우저 OAuth 왕복 — **이번 작업에서는 실행하지 않음**
 
-## 클래스별 결과
+## 현재 실패 테스트
 
-| 테스트 클래스 | 개수 | 결과 |
+| 테스트 클래스 | 테스트 | 실패 위치 |
 |---|---|---|
-| `CareerdockApplicationTests` | 1 | 통과 |
-| `HealthControllerTest` | 1 | 통과 |
-| `AuthControllerTest` | 3 | 통과 |
-| `OAuthUserProvisionerTest` | 2 | 통과 |
-| `UserRepositoryTest` | 2 | 통과 |
-| `ApplicationControllerTest` | 9 | 통과 |
-| `EssayControllerTest` | 4 | 통과 |
-| `CredentialControllerTest` | 11 | 통과 |
-| `ExternalLinkControllerTest` | 4 | 통과 |
-| `FileControllerTest` | 10 | 통과 |
-| `CalendarControllerTest` | 13 | 통과 |
-| `ApplicationResourceControllerTest` | 9 | 통과 |
-| `GlobalExceptionHandlerTest` | 3 | 통과 |
-| `MvpScenarioIntegrationTest`(10단계 신규) | 1 | 통과 |
-| **합계** | **73** | **73 통과, 0 실패** |
+| `GoogleCalendarControllerTest` | `syncRetriesFailedEvents()` | line 179 |
+| `GoogleCalendarControllerTest` | `disconnectRevokesTokenAndResetsEvents()` | line 193 |
+| `GoogleCalendarControllerTest` | `testEventCreatesThrowawayEventWithoutTouchingRecruitmentEvents()` | line 216 |
+
+위 3건은 현재 작업트리에 이미 포함된 Google Calendar 변경 영역의 테스트 실패다. 이번 계약 동기화 작업은 문서, 프론트 endpoint 상수, 프론트 Calendar DTO 타입만 수정했으며 백엔드 Calendar 로직은 변경하지 않았다.
 
 ---
 

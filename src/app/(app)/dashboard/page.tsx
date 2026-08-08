@@ -2,19 +2,21 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LinkButton } from "@/components/ui/link-button";
 import { DeadlineCard } from "@/features/dashboard/components/deadline-card";
 import {
+  DashboardErrorState,
   DashboardEmptyState,
   DashboardSection,
 } from "@/features/dashboard/components/dashboard-section";
 import { DashboardSummary } from "@/features/dashboard/components/dashboard-summary";
-import { ExpiringCredentials } from "@/features/dashboard/components/expiring-credentials";
-import { RecentResources } from "@/features/dashboard/components/recent-resources";
 import { UpcomingEvents } from "@/features/dashboard/components/upcoming-events";
 import { getCurrentUserFromSession } from "@/features/auth/api/server-auth";
-import { dashboardMockData } from "@/features/dashboard/mock-data";
+import { getDashboardSummary } from "@/features/dashboard/dashboard-service";
+import type { DashboardData } from "@/features/dashboard/types";
 
 export default async function DashboardPage() {
-  const dashboardData = dashboardMockData;
-  const authState = await getCurrentUserFromSession();
+  const [authState, dashboardResult] = await Promise.all([
+    getCurrentUserFromSession(),
+    getDashboardSummary(),
+  ]);
   const currentUserName = authState.status === "authenticated" ? authState.user.name : "사용자";
 
   return (
@@ -32,6 +34,21 @@ export default async function DashboardPage() {
         title="대시보드"
       />
 
+      {dashboardResult.ok ? (
+        <DashboardContent dashboardData={dashboardResult.value} />
+      ) : (
+        <DashboardErrorState
+          description={dashboardResult.message}
+          title="대시보드를 불러올 수 없습니다."
+        />
+      )}
+    </>
+  );
+}
+
+function DashboardContent({ dashboardData }: { dashboardData: DashboardData }) {
+  return (
+    <>
       <DashboardSummary summary={dashboardData.summary} />
 
       <DashboardSection
@@ -52,12 +69,7 @@ export default async function DashboardPage() {
         )}
       </DashboardSection>
 
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <UpcomingEvents events={dashboardData.recruitmentEvents} />
-        <ExpiringCredentials credentials={dashboardData.expiringCredentials} />
-      </div>
-
-      <RecentResources resources={dashboardData.recentResources} />
+      <UpcomingEvents events={dashboardData.upcomingEvents} />
     </>
   );
 }

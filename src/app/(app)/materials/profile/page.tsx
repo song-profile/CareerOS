@@ -1,13 +1,13 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkButton } from "@/components/ui/link-button";
+import { getUserProfileForCurrentUser } from "@/features/materials/api/server-materials-api";
 import {
   MaterialsErrorState,
 } from "@/features/materials/components/materials-states";
 import { ProfileSummaryCard } from "@/features/materials/components/profile-summary-card";
-import { getUserProfile } from "@/features/materials/materials-service";
 
 export default async function ProfilePage() {
-  const result = await getUserProfile();
+  const result = await getUserProfileForCurrentUser();
 
   return (
     <>

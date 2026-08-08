@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkButton } from "@/components/ui/link-button";
+import { getExternalLinksForCurrentUser } from "@/features/materials/api/server-materials-api";
 import { LazyExternalLinkManager } from "@/features/materials/components/lazy-external-link-manager";
 import { ExternalLinkListSkeleton, MaterialsErrorState } from "@/features/materials/components/materials-states";
-import { getExternalLinks } from "@/features/materials/materials-service";
 
 export default async function MaterialLinksPage() {
-  const linksResult = await getExternalLinks();
+  const linksResult = await getExternalLinksForCurrentUser();
 
   return (
     <>

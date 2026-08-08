@@ -10,6 +10,11 @@ import { LinkButton } from "@/components/ui/link-button";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Toast } from "@/components/ui/toast";
+import {
+  createExternalLink,
+  deleteExternalLink,
+  updateExternalLink,
+} from "@/features/materials/api/external-link-api";
 import { ExternalLinkTypeBadge } from "@/features/materials/components/external-link-type-badge";
 import {
   EXTERNAL_LINK_TYPES,
@@ -43,6 +48,7 @@ export function ExternalLinkManager({ links }: ExternalLinkManagerProps) {
   const [items, setItems] = useState<ExternalLink[]>(links);
   const [searchQuery, setSearchQuery] = useState("");
   const [notice, setNotice] = useState("");
+  const [noticeTone, setNoticeTone] = useState<"success" | "error" | "info">("info");
   const [copyId, setCopyId] = useState<string | null>(null);
   const [dialogState, setDialogState] = useState<{
     mode: DialogMode;
@@ -53,6 +59,11 @@ export function ExternalLinkManager({ links }: ExternalLinkManagerProps) {
     () => filterExternalLinks(items, searchQuery),
     [items, searchQuery],
   );
+
+  function showNotice(message: string, tone: "success" | "error" | "info" = "info") {
+    setNotice(message);
+    setNoticeTone(tone);
+  }
 
   function openCreateDialog() {
     setDialogState({ mode: "create", link: null });
@@ -65,44 +76,50 @@ export function ExternalLinkManager({ links }: ExternalLinkManagerProps) {
   async function handleCopy(link: ExternalLink) {
     const succeeded = await copyToClipboard(link.url);
     setCopyId(link.id);
-    setNotice(succeeded ? "링크를 복사했습니다." : "클립보드 복사에 실패했습니다.");
+    showNotice(
+      succeeded ? "링크를 복사했습니다." : "클립보드 복사에 실패했습니다.",
+      succeeded ? "success" : "error",
+    );
     window.setTimeout(() => setCopyId(null), 2000);
   }
 
-  function handleDeletePlaceholder(link: ExternalLink) {
-    setNotice(`${link.title} 삭제는 API 연동 후 처리됩니다. 현재 데이터는 삭제되지 않습니다.`);
+  async function handleDelete(link: ExternalLink) {
+    try {
+      await deleteExternalLink(link.id);
+      setItems((current) => current.filter((item) => item.id !== link.id));
+      showNotice(`${link.title} 링크를 삭제했습니다.`, "success");
+    } catch {
+      showNotice("링크 삭제에 실패했습니다.", "error");
+    }
   }
 
-  function handleSave(values: ExternalLinkFormValues, editingLink: ExternalLink | null) {
-    if (editingLink) {
-      setItems((current) =>
-        current.map((link) =>
-          link.id === editingLink.id
-            ? {
-                ...link,
-                ...values,
-                title: values.title.trim(),
-                url: values.url.trim(),
-                description: values.description.trim(),
-              }
-            : link,
-        ),
+  async function handleSave(
+    values: ExternalLinkFormValues,
+    editingLink: ExternalLink | null,
+  ): Promise<boolean> {
+    try {
+      if (editingLink) {
+        const updated = await updateExternalLink(editingLink.id, values);
+        setItems((current) =>
+          current.map((link) =>
+            link.id === editingLink.id ? updated : link,
+          ),
+        );
+        showNotice("링크를 수정했습니다.", "success");
+        return true;
+      }
+
+      const created = await createExternalLink(values);
+      setItems((current) => [created, ...current]);
+      showNotice("링크를 등록했습니다.", "success");
+      return true;
+    } catch {
+      showNotice(
+        editingLink ? "링크 수정에 실패했습니다." : "링크 등록에 실패했습니다.",
+        "error",
       );
-      setNotice("링크 수정 목업이 완료되었습니다. 실제 API에는 저장되지 않습니다.");
-      return;
+      return false;
     }
-
-    const nextLink: ExternalLink = {
-      ...values,
-      id: `link-mock-${Date.now()}`,
-      title: values.title.trim(),
-      url: values.url.trim(),
-      description: values.description.trim(),
-      createdAt: new Date(),
-    };
-
-    setItems((current) => [nextLink, ...current]);
-    setNotice("링크 등록 목업이 완료되었습니다. 실제 API에는 저장되지 않습니다.");
   }
 
   return (
@@ -147,7 +164,7 @@ export function ExternalLinkManager({ links }: ExternalLinkManagerProps) {
                 key={link.id}
                 link={link}
                 onCopy={handleCopy}
-                onDelete={handleDeletePlaceholder}
+                onDelete={(target) => void handleDelete(target)}
                 onEdit={openEditDialog}
               />
             ))}
@@ -158,7 +175,7 @@ export function ExternalLinkManager({ links }: ExternalLinkManagerProps) {
       </div>
 
       {notice ? (
-        <Toast widthClassName="sm:w-[400px]">{notice}</Toast>
+        <Toast tone={noticeTone} widthClassName="sm:w-[400px]">{notice}</Toast>
       ) : null}
 
       {dialogState ? (
@@ -252,7 +269,7 @@ function ExternalLinkDialog({
   link: ExternalLink | null;
   mode: DialogMode;
   onClose: () => void;
-  onSave: (values: ExternalLinkFormValues, editingLink: ExternalLink | null) => void;
+  onSave: (values: ExternalLinkFormValues, editingLink: ExternalLink | null) => Promise<boolean>;
 }) {
   const [values, setValues] = useState<ExternalLinkFormValues>(
     link
@@ -274,7 +291,7 @@ function ExternalLinkDialog({
     setValues((current) => ({ ...current, [key]: value }));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const nextErrors = validateExternalLinkForm(values);
@@ -285,15 +302,17 @@ function ExternalLinkDialog({
     }
 
     setSubmitting(true);
-    onSave(values, link);
+    const saved = await onSave(values, link);
     setSubmitting(false);
-    onClose();
+    if (saved) {
+      onClose();
+    }
   }
 
   return (
     <Dialog
       className="max-w-lg"
-      description="https URL만 등록할 수 있습니다. 실제 저장 API는 아직 호출하지 않습니다."
+      description="http 또는 https URL만 등록할 수 있습니다."
       onClose={onClose}
       title={mode === "create" ? "새 링크 등록" : "링크 수정"}
     >
@@ -316,7 +335,7 @@ function ExternalLinkDialog({
         />
         <Input
           errorMessage={errors.url}
-          helperText="https://로 시작하는 공개 링크만 입력해 주세요."
+          helperText="http:// 또는 https://로 시작하는 공개 링크만 입력해 주세요."
           label="URL"
           onChange={(event) => updateField("url", event.target.value)}
           placeholder="https://github.com/example"
@@ -369,6 +388,8 @@ function getLinkIconText(type: ExternalLinkType): string {
     Blog: "BL",
     Portfolio: "PF",
     LinkedIn: "IN",
+    "배포 서비스": "DP",
+    "프로젝트 Repository": "PR",
     기타: "ET",
   };
 

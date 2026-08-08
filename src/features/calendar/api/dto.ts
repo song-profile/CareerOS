@@ -36,6 +36,7 @@ export interface CalendarEventDto {
   memo: string | null;
   googleEventId: string | null;
   syncStatus: CalendarSyncStatusDto;
+  syncFailureReason: string | null;
   reminderRules: CalendarReminderRuleDto[];
   createdAt: string;
   updatedAt: string;
@@ -61,4 +62,28 @@ export interface CalendarEventQueryDto {
   limit?: number;
   applicationId?: number;
   eventType?: CalendarEventTypeDto;
+}
+
+export interface CalendarConnectResponseDto {
+  authorizationUrl: string;
+}
+
+export interface CalendarStatusResponseDto {
+  connected: boolean;
+  status: CalendarSyncStatusDto;
+  connectedAt: string | null;
+  lastSyncedAt: string | null;
+  lastSyncError: string | null;
+  eventCounts: Partial<Record<CalendarSyncStatusDto, number>>;
+}
+
+export interface CalendarSyncResponseDto {
+  attempted: number;
+  synced: number;
+  failed: number;
+}
+
+export interface CalendarTestEventResponseDto {
+  googleEventId: string;
+  htmlLink: string | null;
 }

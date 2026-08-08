@@ -3,7 +3,7 @@ import { CopyField } from "@/components/ui/copy-field";
 import { LinkButton } from "@/components/ui/link-button";
 import { MaskedField } from "@/components/ui/masked-field";
 import { maskValue } from "@/features/materials/credential-utils";
-import { toProfileFields } from "@/features/materials/mock-data";
+import { toProfileFields } from "@/features/materials/profile-utils";
 import type { UserProfile } from "@/features/materials/types";
 
 interface ProfileSummaryCardProps {

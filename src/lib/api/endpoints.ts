@@ -7,6 +7,16 @@ export const apiEndpoints = {
   oauth: {
     googleStart: "/oauth2/authorization/google",
   },
+  dashboard: {
+    summary: "/api/dashboard/summary",
+  },
+  notifications: {
+    list: "/api/notifications",
+    unreadCount: "/api/notifications/unread-count",
+    read: (id: string | number) => `/api/notifications/${id}/read`,
+    readAll: "/api/notifications/read-all",
+    detail: (id: string | number) => `/api/notifications/${id}`,
+  },
   applications: {
     list: "/api/applications",
     detail: (id: string | number) => `/api/applications/${id}`,
@@ -29,6 +39,12 @@ export const apiEndpoints = {
   calendar: {
     events: "/api/calendar/events",
     event: (id: string | number) => `/api/calendar/events/${id}`,
+    connect: "/api/calendar/connect",
+    oauthCallback: "/api/calendar/oauth/callback",
+    status: "/api/calendar/status",
+    sync: "/api/calendar/sync",
+    disconnect: "/api/calendar/disconnect",
+    testEvent: "/api/calendar/test-event",
   },
   essays: {
     list: "/api/essays",

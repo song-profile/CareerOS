@@ -2,11 +2,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CopyField } from "@/components/ui/copy-field";
 import { LinkButton } from "@/components/ui/link-button";
-import { MaskedField } from "@/components/ui/masked-field";
+import { CredentialDeleteButton } from "@/features/materials/components/credential-delete-button";
+import { CredentialNumberField } from "@/features/materials/components/credential-number-field";
 import { CredentialValidityBadge } from "@/features/materials/components/credential-validity-badge";
 import {
   formatCredentialDate,
-  maskCredentialNumber,
 } from "@/features/materials/credential-utils";
 import type { CredentialDetail } from "@/features/materials/types";
 
@@ -94,10 +94,10 @@ export function CredentialDetailView({ credential }: CredentialDetailViewProps) 
                 mono
                 value={formatCredentialDate(credential.acquiredAt)}
               />
-              <MaskedField
-                label="자격번호"
-                maskedValue={maskCredentialNumber(credential.credentialNumber)}
-                value={credential.credentialNumber}
+              <CredentialNumberField
+                credentialId={credential.id}
+                hasCredentialNumber={credential.hasCredentialNumber}
+                maskedValue={credential.credentialNumber}
               />
               {credential.score ? <CopyField label="점수" mono value={credential.score} /> : null}
               {credential.grade ? <CopyField label="등급" value={credential.grade} /> : null}
@@ -132,6 +132,10 @@ export function CredentialDetailView({ credential }: CredentialDetailViewProps) 
               >
                 목록으로
               </LinkButton>
+              <CredentialDeleteButton
+                credentialId={credential.id}
+                credentialName={credential.name}
+              />
             </div>
           </div>
         </CardContent>

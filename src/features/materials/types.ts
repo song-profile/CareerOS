@@ -37,8 +37,9 @@ export interface Credential {
   name: string;
   issuer: string;
   acquiredAt: Date;
-  /** 원본 값. 화면에서는 항상 마스킹해서 시작한다. */
+  /** 목록·상세 DTO에서 내려온 마스킹 값. 전체 번호는 별도 API로만 조회한다. */
   credentialNumber: string;
+  hasCredentialNumber: boolean;
   score: string;
   grade: string;
   validFrom: Date | null;
@@ -129,6 +130,8 @@ export type ExternalLinkType =
   | "Blog"
   | "Portfolio"
   | "LinkedIn"
+  | "배포 서비스"
+  | "프로젝트 Repository"
   | "기타";
 
 export interface ExternalLink {

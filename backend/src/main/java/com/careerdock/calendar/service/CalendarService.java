@@ -29,15 +29,18 @@ public class CalendarService {
     private final RecruitmentEventRepository eventRepository;
     private final ApplicationRepository applicationRepository;
     private final UserRepository userRepository;
+    private final GoogleCalendarSyncService googleCalendarSyncService;
 
     public CalendarService(
             RecruitmentEventRepository eventRepository,
             ApplicationRepository applicationRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            GoogleCalendarSyncService googleCalendarSyncService
     ) {
         this.eventRepository = eventRepository;
         this.applicationRepository = applicationRepository;
         this.userRepository = userRepository;
+        this.googleCalendarSyncService = googleCalendarSyncService;
     }
 
     @Transactional(readOnly = true)
@@ -81,7 +84,9 @@ public class CalendarService {
                 request.memo()
         );
         event.replaceReminderRules(toReminderRules(event, request.reminderRules()));
-        return RecruitmentEventResponse.from(eventRepository.save(event));
+        RecruitmentEvent saved = eventRepository.save(event);
+        googleCalendarSyncService.pushUpsert(saved);
+        return RecruitmentEventResponse.from(saved);
     }
 
     @Transactional
@@ -99,12 +104,15 @@ public class CalendarService {
                 request.memo()
         );
         event.replaceReminderRules(toReminderRules(event, request.reminderRules()));
+        googleCalendarSyncService.pushUpsert(event);
         return RecruitmentEventResponse.from(event);
     }
 
     @Transactional
     public void delete(Long userId, Long eventId) {
-        eventRepository.delete(getEvent(userId, eventId));
+        RecruitmentEvent event = getEvent(userId, eventId);
+        googleCalendarSyncService.pushDelete(event);
+        eventRepository.delete(event);
     }
 
     private RecruitmentEvent getEvent(Long userId, Long eventId) {
