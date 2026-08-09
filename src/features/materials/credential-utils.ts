@@ -34,8 +34,6 @@ export function maskValue(value: string): string {
   return `${trimmed.slice(0, visibleLength)}${"*".repeat(trimmed.length - visibleLength)}`;
 }
 
-/** 자격번호도 같은 규칙으로 가린다. 규칙이 달라지면 여기만 바꾼다. */
-export const maskCredentialNumber = maskValue;
 
 export function getCredentialValidityStatus(
   credential: Pick<Credential, "permanent" | "expiresAt">,

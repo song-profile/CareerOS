@@ -37,8 +37,13 @@ export interface Credential {
   name: string;
   issuer: string;
   acquiredAt: Date;
-  /** 원본 값. 화면에서는 항상 마스킹해서 시작한다. */
-  credentialNumber: string;
+  /**
+   * 서버가 이미 가려서 내려준 값(예: SQLD****). 평문은 목록·상세 응답에 절대 없다.
+   * 평문이 필요하면 GET /api/credentials/{id}/number를 따로 호출한다 — 접근 기록이 남는다.
+   */
+  credentialNumberMasked: string;
+  /** 자격번호가 등록되어 있는지. 없으면 /number가 404라 호출하지 않는다. */
+  hasCredentialNumber: boolean;
   score: string;
   grade: string;
   validFrom: Date | null;
