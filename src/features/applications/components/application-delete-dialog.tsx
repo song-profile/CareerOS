@@ -4,7 +4,8 @@ import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { deleteApplication } from "@/features/applications/api/application-api";
-import { ApiClientError } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { reloadAfterMutation } from "@/lib/api/mutation";
 
 interface ApplicationDeleteDialogProps {
   applicationId: string;
@@ -45,10 +46,9 @@ export function ApplicationDeleteDialog({ applicationId, companyName }: Applicat
 
     try {
       await deleteApplication(applicationId);
-      router.replace("/applications?deleted=1");
-      router.refresh();
+      reloadAfterMutation(router, "/applications?deleted=1", "replace");
     } catch (error) {
-      setErrorMessage(getDeleteErrorMessage(error));
+      setErrorMessage(getApiErrorMessage(error, "지원 건을 삭제"));
       setDeleting(false);
     }
   }
@@ -94,12 +94,4 @@ export function ApplicationDeleteDialog({ applicationId, companyName }: Applicat
       ) : null}
     </>
   );
-}
-
-function getDeleteErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    return error.message;
-  }
-
-  return "지원 건을 삭제할 수 없습니다. 잠시 후 다시 시도해 주세요.";
 }

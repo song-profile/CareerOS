@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { getGoogleOAuthStartUrl } from "@/features/auth/api/oauth-api";
-import { ApiClientError } from "@/lib/api/client";
 
 export function GoogleLoginButton() {
   const [loading, setLoading] = useState(false);
@@ -75,20 +74,4 @@ function GoogleLogo() {
       />
     </svg>
   );
-}
-
-export function getGoogleLoginErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    if (error.kind === "network") {
-      return "인증 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.";
-    }
-
-    if (error.kind === "unauthorized") {
-      return "Google 인증이 완료되지 않았습니다. 다시 로그인해 주세요.";
-    }
-
-    return error.message;
-  }
-
-  return "Google 로그인을 시작할 수 없습니다. 잠시 후 다시 시도해 주세요.";
 }

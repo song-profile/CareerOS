@@ -22,6 +22,7 @@ import { SaveStatusIndicator } from "@/features/essays/components/save-status-in
 import { SubmitLockDialog } from "@/features/essays/components/submit-lock-dialog";
 import { COMMON_QUESTION_TYPES, COMMON_QUESTION_TYPE_LABEL } from "@/features/essays/constants";
 import { lockEssaySubmission, saveEssayDraft } from "@/features/essays/editor-service";
+import { reloadAfterMutation } from "@/lib/api/mutation";
 import type { EssayAnswerDetail, EssaySaveStatus } from "@/features/essays/editor-types";
 import type { CommonQuestionType } from "@/features/essays/types";
 import { createEssayVersion, updateEssayTags } from "@/features/essays/version-service";
@@ -121,6 +122,10 @@ export function EssayEditor({ answer, availableExperienceTags, initialVersions }
       return;
     }
 
+    // 자동 저장은 reloadAfterMutation을 부르지 않는다. 입력할 때마다 서버 컴포넌트를
+    // 다시 그리게 되고, 얻는 것은 목록의 글자 수뿐이다. 제출본 저장·새 버전 생성처럼
+    // 다른 화면이 보는 상태가 바뀔 때만 부른다.
+
     setSavedContent(content);
     setSavedQuestionType(questionType);
     setSavedAt(result.savedAt);
@@ -212,6 +217,9 @@ export function EssayEditor({ answer, availableExperienceTags, initialVersions }
       submittedAt: result.savedAt,
       updatedAt: result.savedAt,
     });
+    // 위 replaceVersion은 에디터 안에서만 보이는 낙관적 반영이다. 목록·대시보드가 보는
+    // 상태(작성본 -> 제출본)까지 맞추려면 서버 컴포넌트를 다시 그려야 한다.
+    reloadAfterMutation(router);
   }
 
   async function handleCreateVersion(input: { createdReason: string; copyContent: boolean }) {
@@ -241,6 +249,7 @@ export function EssayEditor({ answer, availableExperienceTags, initialVersions }
     // 기준 버전은 그대로 두고 새 버전만 추가한다.
     setVersions((current) => [...current, result.value]);
     setSelectedVersionId(result.value.versionId);
+    reloadAfterMutation(router);
   }
 
   async function handleSaveTags(selection: EssayTagSelection) {

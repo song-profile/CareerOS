@@ -1,4 +1,6 @@
-import { ApiClientError, createApiUrl } from "@/lib/api/client";
+import { ApiClientError } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { serverApiRequest } from "@/lib/api/server-client";
 import { createServerCookieHeader } from "@/lib/api/server-cookie";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import type { CurrentUserDto, CurrentUserViewModel } from "@/features/auth/api/dto";
@@ -10,40 +12,26 @@ export type AuthState =
   | { status: "error"; message: string };
 
 export async function getCurrentUserFromSession(): Promise<AuthState> {
-  const cookieHeader = await createServerCookieHeader();
-
-  if (!cookieHeader) {
+  // 세션 쿠키가 없으면 요청 자체가 낭비다. 401을 받아 봐야 결론이 같다.
+  if (!(await createServerCookieHeader())) {
     return { status: "unauthenticated" };
   }
 
   try {
-    const response = await fetch(createApiUrl(apiEndpoints.auth.me), {
-      cache: "no-store",
-      credentials: "include",
-      headers: {
-        Accept: "application/json",
-        Cookie: cookieHeader,
-      },
-    });
-
-    if (response.status === 401) {
-      return { status: "unauthenticated" };
-    }
-
-    if (!response.ok) {
-      // 원인을 삼키면 화면에는 "확인할 수 없습니다"만 남아 디버깅이 불가능하다.
-      console.error(`[auth] GET ${apiEndpoints.auth.me} -> ${response.status}`);
-      return { status: "error", message: "로그인 상태를 확인할 수 없습니다." };
-    }
-
-    const dto = (await response.json()) as CurrentUserDto;
+    const dto = await serverApiRequest<CurrentUserDto>(apiEndpoints.auth.me);
     return { status: "authenticated", user: toCurrentUserViewModel(dto) };
   } catch (error) {
+    // 여기서 401은 오류가 아니라 "로그인 안 됨"이라는 답이다.
     if (error instanceof ApiClientError && error.kind === "unauthorized") {
       return { status: "unauthenticated" };
     }
 
-    console.error("[auth] 세션 확인 요청 실패:", error);
-    return { status: "error", message: "인증 서버에 연결할 수 없습니다." };
+    // 원인을 삼키면 화면에는 "확인할 수 없습니다"만 남아 디버깅이 불가능하다.
+    console.error(
+      `[auth] GET ${apiEndpoints.auth.me} 실패:`,
+      error instanceof ApiClientError ? `${error.kind} status=${error.status ?? "-"}` : error,
+    );
+
+    return { status: "error", message: getApiErrorMessage(error, "로그인 상태를 확인") };
   }
 }

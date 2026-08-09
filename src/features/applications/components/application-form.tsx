@@ -23,7 +23,8 @@ import {
   createApplication,
   updateApplication,
 } from "@/features/applications/api/application-api";
-import { ApiClientError } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { reloadAfterMutation } from "@/lib/api/mutation";
 
 interface ApplicationFormProps {
   applicationId?: string;
@@ -104,11 +105,10 @@ export function ApplicationForm({ applicationId, initialValues, mode }: Applicat
 
       setToastTone("success");
       setToastMessage(successMessage[mode]);
-      router.push(`/applications/${savedApplication.id}`);
-      router.refresh();
+      reloadAfterMutation(router, `/applications/${savedApplication.id}`);
     } catch (error) {
       setToastTone("error");
-      setToastMessage(getApplicationSaveErrorMessage(error));
+      setToastMessage(getApiErrorMessage(error, `지원 건을 ${mode === "create" ? "등록" : "수정"}`));
       setSubmitting(false);
     }
   }
@@ -243,16 +243,4 @@ export function ApplicationForm({ applicationId, initialValues, mode }: Applicat
       ) : null}
     </>
   );
-}
-
-function getApplicationSaveErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    if (error.kind === "validation") {
-      return "입력값을 확인해 주세요.";
-    }
-
-    return error.message;
-  }
-
-  return "지원 건을 저장할 수 없습니다. 잠시 후 다시 시도해 주세요.";
 }

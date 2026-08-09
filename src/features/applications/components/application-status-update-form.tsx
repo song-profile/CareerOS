@@ -7,7 +7,8 @@ import { Select } from "@/components/ui/select";
 import { updateApplicationStatus } from "@/features/applications/api/application-api";
 import { APPLICATION_STATUS_OPTIONS } from "@/features/applications/form-options";
 import type { ApplicationStatus } from "@/features/applications/types";
-import { ApiClientError } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { reloadAfterMutation } from "@/lib/api/mutation";
 
 interface ApplicationStatusUpdateFormProps {
   applicationId: string;
@@ -36,10 +37,10 @@ export function ApplicationStatusUpdateForm({
       await updateApplicationStatus(applicationId, status);
       setToastTone("success");
       setToastMessage("지원 상태를 변경했습니다.");
-      router.refresh();
+      reloadAfterMutation(router);
     } catch (error) {
       setToastTone("error");
-      setToastMessage(getStatusUpdateErrorMessage(error));
+      setToastMessage(getApiErrorMessage(error, "지원 상태를 변경"));
     } finally {
       setSaving(false);
     }
@@ -68,12 +69,4 @@ export function ApplicationStatusUpdateForm({
       ) : null}
     </div>
   );
-}
-
-function getStatusUpdateErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    return error.message;
-  }
-
-  return "지원 상태를 변경할 수 없습니다.";
 }

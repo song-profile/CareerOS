@@ -10,7 +10,7 @@ import {
   updateEssayQuestion,
 } from "@/features/essays/api/essay-api";
 import { toCommonQuestionTypeDto } from "@/features/essays/api/mapper";
-import { ApiClientError } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 /**
  * 자소서 에디터의 데이터 접근 지점.
@@ -43,7 +43,7 @@ export async function saveEssayDraft(
 
     return { ok: true, savedAt: new Date(answer.updatedAt) };
   } catch (error) {
-    return { ok: false, message: getEssayActionErrorMessage(error) };
+    return { ok: false, message: getApiErrorMessage(error, "자소서를 저장") };
   }
 }
 
@@ -62,14 +62,6 @@ export async function lockEssaySubmission(
     const answer = await submitLockEssayAnswer(answerId, { content: payload.content });
     return { ok: true, savedAt: new Date(answer.updatedAt) };
   } catch (error) {
-    return { ok: false, message: getEssayActionErrorMessage(error) };
+    return { ok: false, message: getApiErrorMessage(error, "제출본을 저장") };
   }
-}
-
-function getEssayActionErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    return error.message;
-  }
-
-  return "자소서 요청을 처리할 수 없습니다.";
 }
