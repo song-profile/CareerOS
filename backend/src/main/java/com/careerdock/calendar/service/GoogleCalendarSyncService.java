@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,8 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 @Service
 public class GoogleCalendarSyncService {
+
+    private static final Logger log = LoggerFactory.getLogger(GoogleCalendarSyncService.class);
 
     private static final String OAUTH_STATE_SESSION_KEY = "google_calendar_oauth_state";
     private static final String CALENDAR_SETTINGS_PATH = "/settings/calendar";
@@ -96,6 +100,13 @@ public class GoogleCalendarSyncService {
         Object expectedState = session.getAttribute(OAUTH_STATE_SESSION_KEY);
         session.removeAttribute(OAUTH_STATE_SESSION_KEY);
         if (expectedState == null || !expectedState.equals(state) || code == null || code.isBlank()) {
+            // state/code 값 자체는 남기지 않는다. 무엇이 비었는지만 알면 원인 구분은 충분하다.
+            log.warn("google calendar 연결 실패: userId={}, endpoint=/api/calendar/oauth/callback, reason=INVALID_REQUEST, "
+                            + "stateMissing={}, stateMismatch={}, codeMissing={}",
+                    userId,
+                    expectedState == null,
+                    expectedState != null && !expectedState.equals(state),
+                    code == null || code.isBlank());
             redirectWithResult(response, false, "INVALID_REQUEST");
             return;
         }
@@ -105,6 +116,8 @@ public class GoogleCalendarSyncService {
             if (refreshToken == null) {
                 // access_type=offline + prompt=consent를 항상 쓰므로 정상 흐름에서는 거의 없지만,
                 // Google이 refresh_token을 안 주면 재동기화를 할 수 없으니 방어적으로 막는다.
+                log.warn("google calendar 연결 실패: userId={}, endpoint=/api/calendar/oauth/callback, "
+                        + "reason=NO_REFRESH_TOKEN", userId);
                 redirectWithResult(response, false, "NO_REFRESH_TOKEN");
                 return;
             }
@@ -114,8 +127,12 @@ public class GoogleCalendarSyncService {
             String calendarId = apiClient.findOrCreateCalendar(credential, connection.getGoogleCalendarId());
             connection.markConnected(calendarId);
 
+            log.info("google calendar 연결 완료: userId={}, connectionId={}", userId, connection.getId());
             redirectWithResult(response, true, null);
         } catch (RuntimeException exception) {
+            // 예외 메시지에는 code/token이 들어갈 수 있어 클래스 이름만 남긴다.
+            log.warn("google calendar 연결 실패: userId={}, endpoint=/api/calendar/oauth/callback, "
+                    + "reason=CONNECT_FAILED, cause={}", userId, exception.getClass().getSimpleName());
             redirectWithResult(response, false, "CONNECT_FAILED");
         }
     }
@@ -222,6 +239,8 @@ public class GoogleCalendarSyncService {
         } catch (GoogleResourceNotFoundException notFound) {
             recoverCalendarThenRetry(connection, event);
         } catch (CareerdockException exception) {
+            log.warn("google calendar 동기화 실패: userId={}, eventId={}, operation=push-upsert, reason={}",
+                    event.getUser().getId(), event.getId(), exception.errorCode().code());
             event.markSyncFailed(exception.errorCode().code());
             connection.markSyncFailed(exception.errorCode().code());
         }
@@ -249,6 +268,8 @@ public class GoogleCalendarSyncService {
         } catch (GoogleResourceNotFoundException notFound) {
             // 이미 Google 쪽에 없다 — 목표 달성.
         } catch (CareerdockException exception) {
+            log.warn("google calendar 동기화 실패: userId={}, eventId={}, operation=push-delete, reason={}",
+                    event.getUser().getId(), event.getId(), exception.errorCode().code());
             connection.markSyncFailed(exception.errorCode().code());
         }
     }
@@ -278,6 +299,9 @@ public class GoogleCalendarSyncService {
             event.clearGoogleLink(null);
             pushUpsertOnce(connection, credential, event);
         } catch (CareerdockException | GoogleResourceNotFoundException exception) {
+            log.warn("google calendar 복구 실패: userId={}, eventId={}, operation=recover-calendar, "
+                            + "reason=GOOGLE_CALENDAR_RECOVERY_FAILED, cause={}",
+                    event.getUser().getId(), event.getId(), exception.getClass().getSimpleName());
             event.markSyncFailed("GOOGLE_CALENDAR_RECOVERY_FAILED");
             connection.markSyncFailed("GOOGLE_CALENDAR_RECOVERY_FAILED");
         }
@@ -313,6 +337,9 @@ public class GoogleCalendarSyncService {
             public void onTokenErrorResponse(Credential credential, TokenErrorResponse tokenErrorResponse) {
                 // refresh token 자체가 무효화됨(예: 사용자가 Google 계정 설정에서 직접 해제).
                 // 재연결 전에는 더 이상 이 연결로 아무 것도 할 수 없다.
+                // tokenErrorResponse.getError()는 "invalid_grant" 같은 사유 코드일 뿐 토큰이 아니다.
+                log.warn("google calendar refresh token 무효화: connectionId={}, reason=GOOGLE_TOKEN_EXPIRED, "
+                        + "googleError={}", connectionId, tokenErrorResponse.getError());
                 connectionRepository.findById(connectionId)
                         .ifPresent(connection -> connection.markSyncFailed("GOOGLE_TOKEN_EXPIRED"));
             }

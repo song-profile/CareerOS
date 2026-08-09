@@ -15,6 +15,8 @@ import com.careerdock.global.config.GoogleCalendarProperties;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -29,6 +31,8 @@ import org.springframework.web.client.RestClient;
  */
 @Component
 public class GoogleOAuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(GoogleOAuthService.class);
 
     private static final String REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke";
 
@@ -118,6 +122,11 @@ public class GoogleOAuthService {
                     .toBodilessEntity();
         } catch (RuntimeException exception) {
             // best-effort. Google 쪽 revoke가 실패해도 로컬 연결 해제를 막지 않는다.
+            //
+            // 예외 메시지는 절대 남기지 않는다. revoke URL은 ?token=<refresh token> 형태라
+            // ResourceAccessException 같은 I/O 예외 메시지에 요청 URI가 통째로 들어간다.
+            log.warn("google 토큰 revoke 실패: endpoint={}, cause={}",
+                    REVOKE_ENDPOINT, exception.getClass().getSimpleName());
         }
     }
 }
