@@ -18,6 +18,9 @@ export const MATERIAL_FILE_TYPE_FILTERS: MaterialFileTypeFilter[] = [
   ...MATERIAL_FILE_TYPES,
 ];
 
+/** 백엔드 MAX_UPLOAD_SIZE 기본값(10MB)과 맞춘다. 서버 왕복 없이 미리 막는다. */
+export const MATERIAL_FILE_MAX_SIZE_BYTES = 10 * 1024 * 1024;
+
 export function formatMaterialFileDate(date: Date): string {
   return new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",

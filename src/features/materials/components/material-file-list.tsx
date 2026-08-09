@@ -20,6 +20,7 @@ import {
   filterMaterialFiles,
   formatFileSize,
   formatMaterialFileDate,
+  MATERIAL_FILE_MAX_SIZE_BYTES,
   MATERIAL_FILE_TYPE_FILTERS,
 } from "@/features/materials/file-utils";
 import type {
@@ -410,7 +411,16 @@ function MaterialFileUploadDialog({
   const [submitting, setSubmitting] = useState(false);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    setFile(event.target.files?.[0] ?? null);
+    const nextFile = event.target.files?.[0] ?? null;
+
+    if (nextFile && nextFile.size > MATERIAL_FILE_MAX_SIZE_BYTES) {
+      setFile(null);
+      setError(`파일 크기는 ${formatFileSize(MATERIAL_FILE_MAX_SIZE_BYTES)} 이하여야 합니다.`);
+      event.target.value = "";
+      return;
+    }
+
+    setFile(nextFile);
     setError("");
   }
 
@@ -447,6 +457,7 @@ function MaterialFileUploadDialog({
         <Input
           ref={fileInputRef}
           errorMessage={error}
+          helperText={`최대 ${formatFileSize(MATERIAL_FILE_MAX_SIZE_BYTES)}까지 업로드할 수 있습니다.`}
           label="파일"
           onChange={handleFileChange}
           required
