@@ -1,8 +1,30 @@
 import { apiClient } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
+import { defineEndpoint } from "@/lib/api/prepared-api";
 import type { ApiModuleContract } from "@/lib/api/types";
 import type { CurrentUserDto, CurrentUserViewModel } from "@/features/auth/api/dto";
 import { toCurrentUserViewModel } from "@/features/auth/api/mapper";
+
+export const authApi = {
+  endpoints: {
+    currentUser: defineEndpoint<void, CurrentUserDto, CurrentUserViewModel>({
+      method: "GET",
+      path: apiEndpoints.auth.me,
+      response: toCurrentUserViewModel,
+    }),
+    logout: defineEndpoint({
+      method: "POST",
+      path: apiEndpoints.auth.logout,
+    }),
+    googleStart: defineEndpoint({
+      method: "GET",
+      path: apiEndpoints.oauth.googleStart,
+    }),
+  },
+  mapper: {
+    toCurrentUserViewModel,
+  },
+};
 
 export async function getCurrentUser(): Promise<CurrentUserViewModel> {
   const dto = await apiClient<CurrentUserDto>(apiEndpoints.auth.me);

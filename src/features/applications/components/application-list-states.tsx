@@ -1,18 +1,12 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ErrorStateCard, StateCard } from "@/components/ui/state-card";
 
 export function ApplicationEmptyState() {
   return (
-    <Card>
-      <CardContent>
-        <div className="grid gap-1">
-          <p className="text-body-medium text-neutral-900">조건에 맞는 지원 건이 없습니다.</p>
-          <p className="text-body text-neutral-600">
-            검색어를 줄이거나 상태 필터를 전체로 바꾸면 다시 확인할 수 있습니다.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <StateCard
+      description="검색어를 줄이거나 상태 필터를 전체로 바꾸면 다시 확인할 수 있습니다."
+      title="조건에 맞는 지원 건이 없습니다."
+    />
   );
 }
 
@@ -38,19 +32,5 @@ export function ApplicationErrorState({
   message?: string;
   onRetry?: () => void;
 }) {
-  return (
-    <Card>
-      <CardContent>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid gap-1">
-            <p className="text-body-medium text-neutral-900">지원 목록을 불러올 수 없습니다.</p>
-            <p className="text-body text-neutral-600">{message}</p>
-          </div>
-          <Button onClick={onRetry} size="sm" variant="secondary">
-            다시 시도
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <ErrorStateCard message={message} onRetry={onRetry} title="지원 목록을 불러올 수 없습니다." />;
 }

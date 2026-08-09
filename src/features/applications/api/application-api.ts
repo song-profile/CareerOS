@@ -1,21 +1,100 @@
 import { apiClient } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
+import { defineEndpoint } from "@/lib/api/prepared-api";
 import type { ApiModuleContract } from "@/lib/api/types";
 import type { ApplicationSavePayload } from "@/features/applications/form-types";
 import type { ApplicationListItem } from "@/features/applications/types";
 import type { ApplicationDetail } from "@/features/applications/detail-types";
 import type {
   ApplicationDto,
+  ApplicationResourcesDto,
+  LinkCredentialRequestDto,
+  LinkExternalLinkRequestDto,
+  LinkFileRequestDto,
   ApplicationQueryDto,
   ApplicationStatusDto,
+  ApplicationStatusUpdateRequestDto,
 } from "@/features/applications/api/dto";
 import {
+  mergeApplicationResources,
   toApplicationCreateRequest,
   toApplicationDetail,
   toApplicationListItem,
   toApplicationStatusDto,
   toApplicationUpdateRequest,
 } from "@/features/applications/api/mapper";
+
+export const applicationApi = {
+  endpoints: {
+    list: defineEndpoint<ApplicationQueryDto | undefined, ApplicationDto[], ApplicationListItem[]>({
+      method: "GET",
+      path: apiEndpoints.applications.list,
+      response: (dtos) => dtos.map(toApplicationListItem),
+    }),
+    create: defineEndpoint<ApplicationSavePayload, ApplicationDto, ApplicationDetail>({
+      method: "POST",
+      path: apiEndpoints.applications.list,
+      request: toApplicationCreateRequest,
+      response: toApplicationDetail,
+    }),
+    detail: defineEndpoint<void, ApplicationDto, ApplicationDetail>({
+      method: "GET",
+      path: apiEndpoints.applications.detail,
+      response: toApplicationDetail,
+    }),
+    update: defineEndpoint<ApplicationSavePayload, ApplicationDto, ApplicationDetail>({
+      method: "PATCH",
+      path: apiEndpoints.applications.detail,
+      request: toApplicationUpdateRequest,
+      response: toApplicationDetail,
+    }),
+    status: defineEndpoint<ApplicationStatusUpdateRequestDto, ApplicationDto, ApplicationDetail>({
+      method: "PATCH",
+      path: apiEndpoints.applications.status,
+      response: toApplicationDetail,
+    }),
+    delete: defineEndpoint({
+      method: "DELETE",
+      path: apiEndpoints.applications.detail,
+    }),
+    resources: defineEndpoint<void, ApplicationResourcesDto>({
+      method: "GET",
+      path: apiEndpoints.applications.resources,
+    }),
+    linkFile: defineEndpoint<LinkFileRequestDto, ApplicationResourcesDto>({
+      method: "POST",
+      path: apiEndpoints.applications.files,
+    }),
+    unlinkFile: defineEndpoint({
+      method: "DELETE",
+      path: apiEndpoints.applications.file,
+    }),
+    linkCredential: defineEndpoint<LinkCredentialRequestDto, ApplicationResourcesDto>({
+      method: "POST",
+      path: apiEndpoints.applications.credentials,
+    }),
+    unlinkCredential: defineEndpoint({
+      method: "DELETE",
+      path: apiEndpoints.applications.credential,
+    }),
+    linkExternalLink: defineEndpoint<LinkExternalLinkRequestDto, ApplicationResourcesDto>({
+      method: "POST",
+      path: apiEndpoints.applications.externalLinks,
+    }),
+    unlinkExternalLink: defineEndpoint({
+      method: "DELETE",
+      path: apiEndpoints.applications.externalLink,
+    }),
+  },
+  mapper: {
+    mergeApplicationResources,
+    toApplicationCreateRequest,
+    toApplicationDetail,
+    toApplicationListItem,
+    toApplicationStatusDto,
+    toApplicationUpdateRequest,
+  },
+};
 
 export async function fetchApplications(
   query?: ApplicationQueryDto,

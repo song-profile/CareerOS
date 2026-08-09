@@ -1,10 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LinkButton } from "@/components/ui/link-button";
-
-function SkeletonBlock({ className }: { className: string }) {
-  return <div className={`rounded-control bg-neutral-100 ${className}`} />;
-}
+import { SkeletonBlock } from "@/components/ui/skeleton";
+import { StateCard } from "@/components/ui/state-card";
 
 /** 문항 메타데이터와 에디터를 함께 대기시킨다. 빈 Textarea를 먼저 보여주지 않는다. */
 export function EssayEditorSkeleton() {
@@ -66,25 +64,11 @@ export function EssayEditorErrorState({ onRetry }: { onRetry?: () => void }) {
 /** 존재하지 않는 answerId. */
 export function EssayEditorNotFoundState() {
   return (
-    <Card>
-      <CardContent>
-        <div className="grid gap-3">
-          <div className="grid gap-1">
-            <p className="text-body-medium text-neutral-900">답변을 찾을 수 없습니다.</p>
-            <p className="text-body text-neutral-600">
-              삭제되었거나 주소가 잘못된 답변입니다. 자소서 목록에서 다시 열어 주세요.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <LinkButton className="w-full sm:w-fit" href="/essays" size="sm">
-              자소서 목록으로
-            </LinkButton>
-            <LinkButton className="w-full sm:w-fit" href="/applications" size="sm" variant="secondary">
-              지원관리로
-            </LinkButton>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <StateCard
+      actionHref="/essays"
+      actionLabel="자소서 목록으로"
+      description="삭제되었거나 주소가 잘못된 답변입니다. 자소서 목록에서 다시 열어 주세요."
+      title="답변을 찾을 수 없습니다."
+    />
   );
 }

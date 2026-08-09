@@ -1,11 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { LinkButton } from "@/components/ui/link-button";
 import { DashboardEmptyState, DashboardSection } from "@/features/dashboard/components/dashboard-section";
 import { formatDateTime } from "@/features/dashboard/date-utils";
-import type { RecruitmentEvent } from "@/features/dashboard/types";
+import type { DashboardUpcomingEvent } from "@/features/dashboard/types";
 
 interface UpcomingEventsProps {
-  events: RecruitmentEvent[];
+  events: DashboardUpcomingEvent[];
 }
 
 export function UpcomingEvents({ events }: UpcomingEventsProps) {
@@ -27,13 +28,26 @@ export function UpcomingEvents({ events }: UpcomingEventsProps) {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="grid gap-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="primary">{event.type}</Badge>
-                      <p className="text-body-medium text-neutral-900">{event.companyName}</p>
+                      <Badge variant="primary">{event.typeLabel}</Badge>
+                      <p className="text-body-medium text-neutral-900">
+                        {event.companyName || "개인 일정"}
+                      </p>
                     </div>
-                    <p className="text-body text-neutral-600">{event.roleName}</p>
-                    <p className="text-caption text-neutral-600">{event.location}</p>
+                    <p className="text-body text-neutral-600">
+                      {event.roleName || "연결된 지원 건 없음"}
+                    </p>
+                    <p className="text-caption text-neutral-600">
+                      {event.location || "장소 미입력"}
+                    </p>
                   </div>
-                  <p className="font-mono text-mono text-neutral-900">{formatDateTime(event.startsAt)}</p>
+                  <div className="grid gap-2 sm:justify-items-end">
+                    <p className="font-mono text-mono text-neutral-900">
+                      {event.allDay ? "종일" : formatDateTime(event.startsAt)}
+                    </p>
+                    <LinkButton href={event.detailHref} size="sm" variant="secondary">
+                      일정 상세
+                    </LinkButton>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -4,6 +4,8 @@ import com.careerdock.auth.dto.CurrentUserResponse;
 import com.careerdock.global.auth.CareerdockOAuth2User;
 import com.careerdock.global.exception.CareerdockException;
 import com.careerdock.global.exception.ErrorCode;
+import com.careerdock.user.domain.User;
+import com.careerdock.user.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -17,6 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+
+    private final UserRepository userRepository;
+
+    public AuthController(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @GetMapping("/me")
     public CurrentUserResponse me(
@@ -37,6 +45,8 @@ public class AuthController {
             throw new CareerdockException(ErrorCode.UNAUTHORIZED);
         }
 
-        return CurrentUserResponse.from(principal.loginUser());
+        User user = userRepository.findById(principal.loginUser().id())
+                .orElseThrow(() -> new CareerdockException(ErrorCode.UNAUTHORIZED));
+        return CurrentUserResponse.from(user);
     }
 }

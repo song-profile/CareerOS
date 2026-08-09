@@ -1,11 +1,11 @@
 import { PageHeader } from "@/components/layout/page-header";
+import {
+  getCredentialForCurrentUser,
+  getCredentialNumberForCurrentUser,
+} from "@/features/materials/api/server-materials-api";
 import { CredentialForm } from "@/features/materials/components/credential-form";
 import { CredentialNotFoundState } from "@/features/materials/components/materials-states";
 import { toCredentialFormValues } from "@/features/materials/form-defaults";
-import {
-  getCredential,
-  getCredentialNumber,
-} from "@/features/materials/materials-service";
 
 interface EditCredentialPageProps {
   params: Promise<{ credentialId: string }>;
@@ -13,7 +13,7 @@ interface EditCredentialPageProps {
 
 export default async function EditCredentialPage({ params }: EditCredentialPageProps) {
   const { credentialId } = await params;
-  const result = await getCredential(credentialId);
+  const result = await getCredentialForCurrentUser(credentialId);
 
   if (!result.ok) {
     return (
@@ -28,7 +28,7 @@ export default async function EditCredentialPage({ params }: EditCredentialPageP
   // 수정 화면에서만 평문을 따로 받아 채운다. 이 조회는 서버에 접근 기록이 남는다.
   // 번호가 없는 자격은 서버가 404로 답하므로 아예 호출하지 않는다.
   const numberResult = result.value.hasCredentialNumber
-    ? await getCredentialNumber(credentialId)
+    ? await getCredentialNumberForCurrentUser(credentialId)
     : null;
 
   return (

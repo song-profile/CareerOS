@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
+import { defineEndpoint } from "@/lib/api/prepared-api";
 import type { ApiModuleContract } from "@/lib/api/types";
 import type {
   EssayAnswerDto,
@@ -11,6 +12,71 @@ import type {
   ExperienceTagDto,
   ExperienceTagRequestDto,
 } from "@/features/essays/api/dto";
+import {
+  toEssayAnswerVersion,
+  toExperienceTagNames,
+} from "@/features/essays/api/mapper";
+
+export const essayApi = {
+  endpoints: {
+    list: defineEndpoint<EssayQueryDto | undefined, EssayAnswerDto[]>({
+      method: "GET",
+      path: apiEndpoints.essays.list,
+    }),
+    createQuestion: defineEndpoint<EssayQuestionRequestDto, EssayQuestionDto>({
+      method: "POST",
+      path: apiEndpoints.applications.essayQuestions,
+    }),
+    questions: defineEndpoint<void, EssayQuestionDto[]>({
+      method: "GET",
+      path: apiEndpoints.applications.essayQuestions,
+    }),
+    updateQuestion: defineEndpoint<EssayQuestionRequestDto, EssayQuestionDto>({
+      method: "PATCH",
+      path: apiEndpoints.essays.question,
+    }),
+    createAnswer: defineEndpoint<EssayAnswerRequestDto, EssayAnswerDto>({
+      method: "POST",
+      path: apiEndpoints.essays.createAnswer,
+    }),
+    updateAnswer: defineEndpoint<EssayAnswerRequestDto, EssayAnswerDto>({
+      method: "PATCH",
+      path: apiEndpoints.essays.answer,
+    }),
+    createVersion: defineEndpoint<EssayAnswerRequestDto, EssayAnswerDto>({
+      method: "POST",
+      path: apiEndpoints.essays.versions,
+    }),
+    submitLock: defineEndpoint<EssayAnswerRequestDto, EssayAnswerDto>({
+      method: "POST",
+      path: apiEndpoints.essays.submitLock,
+    }),
+    versions: defineEndpoint<void, EssayAnswerDto[]>({
+      method: "GET",
+      path: apiEndpoints.essays.versions,
+    }),
+    tags: defineEndpoint<void, ExperienceTagDto[]>({
+      method: "GET",
+      path: apiEndpoints.essays.tags,
+    }),
+    createTag: defineEndpoint<ExperienceTagRequestDto, ExperienceTagDto>({
+      method: "POST",
+      path: apiEndpoints.essays.tags,
+    }),
+    addAnswerTag: defineEndpoint<EssayAnswerTagRequestDto, EssayAnswerDto>({
+      method: "POST",
+      path: apiEndpoints.essays.answerTags,
+    }),
+    removeAnswerTag: defineEndpoint({
+      method: "DELETE",
+      path: apiEndpoints.essays.answerTag,
+    }),
+  },
+  mapper: {
+    toEssayAnswerVersion,
+    toExperienceTagNames,
+  },
+};
 
 export async function fetchEssayAnswers(query?: EssayQueryDto): Promise<EssayAnswerDto[]> {
   return apiClient<EssayAnswerDto[]>(apiEndpoints.essays.list, { query });

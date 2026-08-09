@@ -36,6 +36,19 @@ export function addMonths(date: Date, months: number): Date {
   return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
 
+export function getCalendarGridRange(monthDate: Date): { start: Date; end: Date } {
+  const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const start = new Date(monthStart);
+  start.setDate(monthStart.getDate() - monthStart.getDay());
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + MONTH_GRID_DAYS - 1);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
 export function buildCalendarMonthDays(monthDate: Date, today: Date): CalendarMonthDay[] {
   const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
   const gridStart = new Date(monthStart);

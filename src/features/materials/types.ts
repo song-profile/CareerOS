@@ -134,6 +134,8 @@ export type ExternalLinkType =
   | "Blog"
   | "Portfolio"
   | "LinkedIn"
+  | "배포 서비스"
+  | "프로젝트 Repository"
   | "기타";
 
 export interface ExternalLink {

@@ -1,10 +1,6 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LinkButton } from "@/components/ui/link-button";
-
-function SkeletonBlock({ className }: { className: string }) {
-  return <div className={`rounded-control bg-neutral-100 ${className}`} />;
-}
+import { SkeletonBlock } from "@/components/ui/skeleton";
+import { ErrorStateCard, StateCard } from "@/components/ui/state-card";
 
 export function CalendarSkeleton() {
   return (
@@ -34,6 +30,33 @@ export function CalendarSkeleton() {
   );
 }
 
+export function EventFormSkeleton() {
+  return (
+    <div aria-label="일정 입력 폼을 불러오는 중입니다." className="grid gap-6" role="status">
+      <Card>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <SkeletonBlock className="h-10 w-full" />
+            <SkeletonBlock className="h-10 w-full" />
+            <SkeletonBlock className="h-10 w-full" />
+            <SkeletonBlock className="h-10 w-full" />
+            <SkeletonBlock className="h-24 w-full md:col-span-2" />
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent>
+          <div className="grid gap-3">
+            <SkeletonBlock className="h-5 w-1/4" />
+            <SkeletonBlock className="h-16 w-full" />
+            <SkeletonBlock className="h-16 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function CalendarEmptyState({
   actionHref,
   actionLabel = "일정 등록",
@@ -46,21 +69,12 @@ export function CalendarEmptyState({
   title: string;
 }) {
   return (
-    <Card>
-      <CardContent>
-        <div className="grid gap-3">
-          <div className="grid gap-1">
-            <p className="text-body-medium text-neutral-900">{title}</p>
-            <p className="text-body text-neutral-600">{description}</p>
-          </div>
-          {actionHref ? (
-            <LinkButton className="w-full sm:w-fit" href={actionHref} size="sm">
-              {actionLabel}
-            </LinkButton>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
+    <StateCard
+      actionHref={actionHref}
+      actionLabel={actionHref ? actionLabel : undefined}
+      description={description}
+      title={title}
+    />
   );
 }
 
@@ -71,21 +85,5 @@ export function CalendarErrorState({
   onRetry?: () => void;
   title: string;
 }) {
-  return (
-    <Card>
-      <CardContent>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid gap-1">
-            <p className="text-body-medium text-neutral-900">{title}</p>
-            <p className="text-body text-neutral-600">잠시 후 다시 시도해 주세요.</p>
-          </div>
-          {onRetry ? (
-            <Button className="w-full sm:w-fit" onClick={onRetry} size="sm" variant="secondary">
-              다시 시도
-            </Button>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <ErrorStateCard onRetry={onRetry} title={title} />;
 }

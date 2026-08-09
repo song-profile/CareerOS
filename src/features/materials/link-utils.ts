@@ -13,6 +13,8 @@ export const EXTERNAL_LINK_TYPES: ExternalLinkType[] = [
   "Blog",
   "Portfolio",
   "LinkedIn",
+  "배포 서비스",
+  "프로젝트 Repository",
   "기타",
 ];
 
@@ -44,7 +46,7 @@ export function filterExternalLinks(
 export function isHttpsUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === "https:";
+    return url.protocol === "https:" || url.protocol === "http:";
   } catch {
     return false;
   }
@@ -66,7 +68,7 @@ export function validateExternalLinkForm(
   if (!values.url.trim()) {
     errors.url = "URL을 입력해 주세요.";
   } else if (!isHttpsUrl(values.url.trim())) {
-    errors.url = "https로 시작하는 올바른 URL을 입력해 주세요.";
+    errors.url = "http 또는 https로 시작하는 올바른 URL을 입력해 주세요.";
   }
 
   if (values.description.length > EXTERNAL_LINK_DESCRIPTION_MAX_LENGTH) {

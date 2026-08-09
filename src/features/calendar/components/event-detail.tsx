@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { LinkButton } from "@/components/ui/link-button";
+import { Toast } from "@/components/ui/toast";
+import { deleteCalendarEvent } from "@/features/calendar/api/calendar-api";
 import {
   formatEventDateTime,
   getDDayLabel,
@@ -27,7 +31,7 @@ export function EventDetail({ event }: { event: CalendarEvent }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <EventTypeBadge eventType={event.eventType} />
                   <Badge variant="neutral">{getDDayLabel(event.startAt)}</Badge>
-                  <Badge variant="neutral">Google Calendar 연동 전</Badge>
+                  <Badge variant="neutral">{syncStatus}</Badge>
                 </div>
                 <div className="grid gap-1">
                   <h2 className="break-words text-display text-neutral-900">{event.title}</h2>
@@ -133,63 +137,67 @@ export function EventDetail({ event }: { event: CalendarEvent }) {
       </Card>
 
       {deleteOpen ? (
-        <DeleteEventDialog eventTitle={event.title} onClose={() => setDeleteOpen(false)} />
+        <DeleteEventDialog
+          eventId={event.id}
+          eventTitle={event.title}
+          onClose={() => setDeleteOpen(false)}
+        />
       ) : null}
     </div>
   );
 }
 
 function DeleteEventDialog({
+  eventId,
   eventTitle,
   onClose,
 }: {
+  eventId: string;
   eventTitle: string;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [notice, setNotice] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await deleteCalendarEvent(eventId);
+      router.push("/calendar");
+      router.refresh();
+    } catch {
+      setNotice("일정 삭제에 실패했습니다.");
+      setDeleting(false);
     }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }
 
   return (
-    <div
-      aria-labelledby="calendar-delete-title"
-      aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center bg-neutral-900/40 px-6"
-      role="dialog"
-    >
-      <div className="grid w-full max-w-md gap-4 rounded-modal border border-neutral-200 bg-neutral-0 p-5 shadow-lg">
-        <div className="grid gap-2">
-          <h2 className="text-h2 text-neutral-900" id="calendar-delete-title">
-            일정 삭제
-          </h2>
-          <p className="break-words text-body text-neutral-600">
-            {eventTitle} 일정을 삭제하면 복구할 수 없습니다. 이번 단계에서는 실제 데이터가
-            삭제되지 않습니다.
-          </p>
-        </div>
-        {notice ? <p className="text-body-medium text-primary-700">{notice}</p> : null}
+    <Dialog
+      description={
+        <p className="break-words">
+          {eventTitle} 일정을 삭제하면 복구할 수 없습니다.
+        </p>
+      }
+      footer={
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button onClick={onClose} variant="secondary">
             취소
           </Button>
           <Button
-            onClick={() => setNotice("삭제 API 연동 전입니다. 실제 일정은 삭제되지 않습니다.")}
+            disabled={deleting}
+            onClick={() => void handleDelete()}
             variant="danger"
           >
-            삭제 확인
+            {deleting ? "삭제 중" : "삭제 확인"}
           </Button>
         </div>
-      </div>
-    </div>
+      }
+      onClose={onClose}
+      title="일정 삭제"
+    >
+      {notice ? <Toast tone="error">{notice}</Toast> : null}
+    </Dialog>
   );
 }
 

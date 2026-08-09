@@ -176,6 +176,12 @@ public class GoogleCalendarApiClient {
                             operation, status, firstReason(exception), ErrorCode.GOOGLE_RATE_LIMITED.code());
                     throw new CareerdockException(ErrorCode.GOOGLE_RATE_LIMITED, ErrorCode.GOOGLE_RATE_LIMITED.message());
                 }
+                if (status == 403) {
+                    ErrorCode forbiddenCode = forbiddenErrorCode(exception);
+                    log.warn("google calendar 접근 거부: operation={}, googleStatus=403, reason={}, errorCode={}",
+                            operation, firstReason(exception), forbiddenCode.code());
+                    throw new CareerdockException(forbiddenCode, forbiddenCode.message());
+                }
                 log.warn("google calendar 호출 실패: operation={}, googleStatus={}, reason={}, errorCode={}",
                         operation, status, firstReason(exception), ErrorCode.GOOGLE_API_ERROR.code());
                 throw new CareerdockException(ErrorCode.GOOGLE_API_ERROR, ErrorCode.GOOGLE_API_ERROR.message());
@@ -204,6 +210,16 @@ public class GoogleCalendarApiClient {
                 .filter(reason -> reason != null && !reason.isBlank())
                 .findFirst()
                 .orElse("unknown");
+    }
+
+    private ErrorCode forbiddenErrorCode(GoogleJsonResponseException exception) {
+        String reason = firstReason(exception);
+        if ("accessNotConfigured".equals(reason)
+                || "serviceDisabled".equals(reason)
+                || "apiDisabled".equals(reason)) {
+            return ErrorCode.GOOGLE_CALENDAR_API_DISABLED;
+        }
+        return ErrorCode.GOOGLE_CALENDAR_FORBIDDEN;
     }
 
     private boolean isRateLimited(GoogleJsonResponseException exception) {

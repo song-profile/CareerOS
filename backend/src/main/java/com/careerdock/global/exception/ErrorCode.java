@@ -15,6 +15,8 @@ public enum ErrorCode {
     // 401(UNAUTHORIZED)은 CareerDock 로그인 자체가 필요하다는 의미로 이미 쓰이고 있어,
     // Calendar 재동의가 필요한 상황과 섞이지 않도록 409로 구분한다.
     GOOGLE_TOKEN_EXPIRED(HttpStatus.CONFLICT, "GOOGLE_TOKEN_EXPIRED", "Google Calendar 연결이 만료되었습니다. 다시 연결해주세요."),
+    GOOGLE_CALENDAR_FORBIDDEN(HttpStatus.FORBIDDEN, "GOOGLE_CALENDAR_FORBIDDEN", "Google Calendar 접근 권한이 없습니다."),
+    GOOGLE_CALENDAR_API_DISABLED(HttpStatus.BAD_GATEWAY, "GOOGLE_CALENDAR_API_DISABLED", "Google Calendar API가 활성화되어 있지 않습니다."),
     GOOGLE_API_ERROR(HttpStatus.BAD_GATEWAY, "GOOGLE_API_ERROR", "Google Calendar 요청 처리 중 오류가 발생했습니다."),
     GOOGLE_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "GOOGLE_RATE_LIMITED", "Google Calendar 요청이 많아 잠시 후 다시 시도해주세요."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 오류가 발생했습니다.");

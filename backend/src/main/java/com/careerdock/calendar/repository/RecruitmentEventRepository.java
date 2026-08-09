@@ -2,6 +2,7 @@ package com.careerdock.calendar.repository;
 
 import com.careerdock.calendar.domain.RecruitmentEvent;
 import com.careerdock.calendar.domain.SyncStatus;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -21,4 +22,26 @@ public interface RecruitmentEventRepository
 
     @Query("select e.syncStatus from RecruitmentEvent e where e.user.id = :userId")
     List<SyncStatus> findSyncStatusesByUserId(Long userId);
+
+    long countByUserIdAndStartAtGreaterThanAndStartAtLessThanEqual(Long userId, Instant from, Instant to);
+
+    @EntityGraph(attributePaths = {"application", "application.company"})
+    @Query("""
+            select e
+            from RecruitmentEvent e
+            where e.user.id = :userId
+              and e.startAt > :from
+            order by e.startAt asc, e.id asc
+            """)
+    List<RecruitmentEvent> findDashboardUpcomingEvents(Long userId, Instant from, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"application", "application.company"})
+    @Query("""
+            select e
+            from RecruitmentEvent e
+            where e.startAt >= :from
+              and e.startAt < :to
+            order by e.startAt asc, e.id asc
+            """)
+    List<RecruitmentEvent> findNotificationStartTargets(Instant from, Instant to);
 }

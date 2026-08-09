@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { LinkButton } from "@/components/ui/link-button";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Toast } from "@/components/ui/toast";
 import { APPLICATION_STATUS_OPTIONS, RECRUITMENT_SEASON_OPTIONS } from "@/features/applications/form-options";
 import {
   APPLICATION_MEMO_MAX_LENGTH,
@@ -230,16 +231,7 @@ export function ApplicationForm({ applicationId, initialValues, mode }: Applicat
       </Card>
 
       {toastMessage ? (
-        <div
-          className={
-            toastTone === "success"
-              ? "fixed bottom-6 left-6 right-6 z-50 rounded-card border border-success-100 bg-success-50 px-4 py-3 text-body-medium text-success-700 shadow-lg sm:left-auto sm:w-[360px]"
-              : "fixed bottom-6 left-6 right-6 z-50 rounded-card border border-danger-100 bg-danger-50 px-4 py-3 text-body-medium text-danger-700 shadow-lg sm:left-auto sm:w-[360px]"
-          }
-          role="status"
-        >
-          {toastMessage}
-        </div>
+        <Toast tone={toastTone}>{toastMessage}</Toast>
       ) : null}
     </>
   );

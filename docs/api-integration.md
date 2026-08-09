@@ -1,31 +1,83 @@
 # CareerDock API Integration Notes
 
-작성일: 2026-08-02
+작성 기준: 현재 저장소 구현
 
-## 현재 확인 결과
+## 기준 문서
 
-- 저장소 안에 `docs/api-spec.md`와 Spring Boot 백엔드 코드가 있다.
-- OpenAPI/Swagger 명세는 아직 없다.
-- `.env.example`은 `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080`를 사용한다.
-- `.gitignore`는 `.env`, `.env*.local`을 제외한다.
-- 인증 방식은 Spring Security Session + HttpOnly `JSESSIONID` Cookie이다.
-- 공통 오류 응답은 `timestamp`, `status`, `code`, `message`, `fieldErrors`, `path`, `requestId` 구조를 따른다.
-- 지원 건, 자소서, 자격증, 파일, 외부 링크 API는 현재 백엔드 controller와 DTO가 있다.
-- Calendar API는 아직 백엔드 controller/DTO가 없어 pending 상태로 둔다.
+상세 API 계약은 [docs/api-spec.md](api-spec.md)를 기준으로 한다.
+
+이 문서는 프론트와 백엔드 연동 원칙을 요약한다.
+
+## 현재 연동 상태
+
+현재 프론트는 다음 기능을 실제 Spring Boot API와 연결한다.
+
+- 인증: `/api/auth/me`, Google OAuth 시작 URL
+- 대시보드: `/api/dashboard/summary`
+- 지원관리: `/api/applications`
+- 자소서: `/api/essays`, `/api/essay-questions`, `/api/essay-answers`, `/api/experience-tags`
+- 내 자료: `/api/credentials`, `/api/external-links`, `/api/files`
+- 캘린더: `/api/calendar/events`
+- 지원 건 자료 연결: `/api/applications/{applicationId}/resources` 및 하위 연결 API
+
+## 인증 방식
+
+- Spring Security Session + HttpOnly `JSESSIONID` Cookie
+- 프론트 요청은 공통 API client를 통해 `credentials: "include"`를 사용한다.
+- request body나 query parameter로 `userId`를 보내지 않는다.
+- 인증이 필요한 API는 세션이 없으면 `401 UNAUTHORIZED`를 반환한다.
 
 ## 프론트 연동 원칙
 
-- 컴포넌트에 endpoint 문자열을 직접 작성하지 않는다.
-- 실제 API 전환 전까지 Mock Data는 유지하고, 화면별 교체 시 service 함수 내부에서만 API 모듈로 연결한다.
-- API 응답과 UI View Model이 다르면 mapper를 기능별 API 모듈 또는 service 계층에 둔다.
-- FormData 업로드 요청에는 `Content-Type`을 직접 지정하지 않는다.
-- 프론트는 토큰을 저장하지 않는다. 인증 상태는 HttpOnly Cookie 세션으로 유지한다.
+- endpoint 문자열은 `src/lib/api/endpoints.ts`에서 관리한다.
+- 컴포넌트에서 API URL을 직접 작성하지 않는다.
+- 기능별 API 모듈은 `src/features/*/api` 아래에 둔다.
+- backend DTO와 화면 ViewModel이 다르면 mapper를 둔다.
+- mock fallback으로 성공처럼 보이게 하지 않는다.
+- API 오류, 빈 데이터, loading 상태를 구분한다.
+- `FormData` 업로드에서는 `Content-Type`을 직접 설정하지 않는다.
 
-## 백엔드에서 확인이 필요한 항목
+## 오류 처리
 
-- Calendar API endpoint와 DTO
-- 프로필 기본정보 API endpoint와 DTO
-- Application 상세에서 제출 파일, 체크리스트, 자소서 요약을 내려줄지 여부
-- Essay 목록 응답에 기존 라이브러리 화면이 요구하는 `season`, `characterLimit`, `commonQuestionType` 등을 포함할지 여부
-- Pagination 도입 시 응답 구조
-- Health Check 또는 공개 상태 확인 endpoint
+공통 API client는 HTTP 상태를 `ApiClientError.kind`로 변환한다.
+
+- `network`
+- `unauthorized`
+- `forbidden`
+- `notFound`
+- `conflict`
+- `validation`
+- `server`
+- `api`
+
+화면에서는 최소한 인증 필요, 네트워크 오류, 서버 오류, 데이터 없음 상태를 구분한다.
+
+## 날짜 처리
+
+- `Instant`: `2026-08-02T00:00:00Z` 형식
+- `LocalDate`: `2026-08-02` 형식
+- 캘린더 종일 일정은 서버에서 한국 날짜 하루 경계를 기준으로 처리한다.
+- 프론트는 화면 표시 시 한국 시간 기준으로 포맷한다.
+
+## Multipart
+
+파일 업로드:
+
+```text
+POST /api/files
+Content-Type: multipart/form-data
+```
+
+필드:
+
+- `file`: 파일 본문
+- `category`: 파일 분류
+- `displayName`: 표시 이름, 선택
+
+허용 파일과 최대 크기는 backend 설정과 `docs/api-spec.md`를 따른다.
+
+## 남은 문서화 과제
+
+- OpenAPI/Swagger 자동 문서는 아직 없다.
+- 운영 배포용 reverse proxy, HTTPS 설정 문서는 별도 작성이 필요하다.
+- Google Calendar 연결/상태/재동기화/연결 해제 UI는 `/settings/calendar`에서 제공한다.

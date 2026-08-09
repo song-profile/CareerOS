@@ -10,6 +10,7 @@ import type {
 } from "@/features/applications/types";
 import type {
   ApplicationDto,
+  ApplicationResourcesDto,
   ApplicationRequestDto,
   ApplicationStatusDto,
   ApplicationUpdateRequestDto,
@@ -103,6 +104,44 @@ export function toApplicationDetail(dto: ApplicationDto): ApplicationDetail {
   };
 }
 
+export function mergeApplicationResources(
+  detail: ApplicationDetail,
+  resources: ApplicationResourcesDto,
+): ApplicationDetail {
+  return {
+    ...detail,
+    materials: [
+      ...resources.files.map((file) => ({
+        id: `file-${file.fileAssetId}`,
+        type: toApplicationMaterialType(file.category),
+        title: file.displayName,
+        isReady: true,
+        placeholderHref: file.downloadUrl,
+      })),
+      ...resources.credentials.map((credential) => ({
+        id: `credential-${credential.credentialId}`,
+        type: "자격증" as const,
+        title: credential.name,
+        isReady: true,
+        placeholderHref: `/materials/credentials/${credential.credentialId}`,
+      })),
+      ...resources.externalLinks.map((link) => ({
+        id: `link-${link.externalLinkId}`,
+        type: "포트폴리오" as const,
+        title: link.displayName,
+        isReady: true,
+        placeholderHref: link.url,
+      })),
+    ],
+    essay: {
+      questionCount: resources.essayQuestions.length,
+      answerCount: resources.essayQuestions.filter((question) => question.hasSubmittedAnswer).length,
+      hasSubmittedVersion: resources.essayQuestions.some((question) => question.hasSubmittedAnswer),
+      href: `/essays?application=${resources.applicationId}`,
+    },
+  };
+}
+
 export function toApplicationCreateRequest(payload: ApplicationSavePayload): ApplicationRequestDto {
   return {
     ...toApplicationUpdateRequest(payload),
@@ -139,6 +178,22 @@ function toApplicationChangeHistory(
     changedAt: toDate(dto.changedAt),
     changedBy: "시스템",
   };
+}
+
+function toApplicationMaterialType(category: string) {
+  if (category === "PROFILE_PHOTO") {
+    return "증명사진" as const;
+  }
+
+  if (category === "PORTFOLIO") {
+    return "포트폴리오" as const;
+  }
+
+  if (category === "TRANSCRIPT") {
+    return "성적증명서" as const;
+  }
+
+  return "자격증" as const;
 }
 
 function getProgress(status: ApplicationStatusDto): number {

@@ -21,8 +21,11 @@ import com.careerdock.calendar.repository.CalendarConnectionRepository;
 import com.careerdock.calendar.repository.RecruitmentEventRepository;
 import com.careerdock.calendar.service.GoogleCalendarApiClient;
 import com.careerdock.calendar.service.GoogleOAuthService;
+import com.careerdock.calendar.service.GoogleTokenCipher;
 import com.careerdock.global.auth.CareerdockOAuth2User;
 import com.careerdock.global.auth.LoginUser;
+import com.careerdock.global.exception.CareerdockException;
+import com.careerdock.global.exception.ErrorCode;
 import com.careerdock.user.domain.AuthProvider;
 import com.careerdock.user.domain.User;
 import com.careerdock.user.repository.UserRepository;
@@ -62,6 +65,7 @@ class GoogleCalendarControllerTest {
     @Autowired private UserRepository userRepository;
     @Autowired private CalendarConnectionRepository connectionRepository;
     @Autowired private RecruitmentEventRepository eventRepository;
+    @Autowired private GoogleTokenCipher tokenCipher;
 
     @MockBean private GoogleOAuthService googleOAuthService;
     @MockBean private GoogleCalendarApiClient apiClient;
@@ -130,6 +134,32 @@ class GoogleCalendarControllerTest {
                         .with(authentication(auth(owner))))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(header().string("Location", "http://localhost:3000/settings/calendar?connected=false&reason=INVALID_REQUEST"));
+
+        assertThat(connectionRepository.findByUserId(owner.getId())).isEmpty();
+    }
+
+    @Test
+    void callbackRedirectsWithSpecificReasonWhenGoogleCalendarAccessIsForbidden() throws Exception {
+        when(googleOAuthService.buildAuthorizationUrl(anyString())).thenReturn("https://accounts.google.com/authorize");
+        MockHttpSession session = startConnectAndCaptureSession();
+        String state = (String) session.getAttribute(OAUTH_STATE_SESSION_KEY);
+
+        GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
+        tokenResponse.setAccessToken("raw-access-token");
+        tokenResponse.setRefreshToken("raw-refresh-token");
+        tokenResponse.setExpiresInSeconds(3600L);
+        when(googleOAuthService.exchangeCode("auth-code")).thenReturn(tokenResponse);
+        when(googleOAuthService.buildCredential(anyString(), anyString(), any(), any())).thenReturn(null);
+        when(apiClient.findOrCreateCalendar(any(), any()))
+                .thenThrow(new CareerdockException(ErrorCode.GOOGLE_CALENDAR_FORBIDDEN));
+
+        mockMvc.perform(get("/api/calendar/oauth/callback")
+                        .param("code", "auth-code")
+                        .param("state", state)
+                        .session(session)
+                        .with(authentication(auth(owner))))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", "http://localhost:3000/settings/calendar?connected=false&reason=GOOGLE_CALENDAR_FORBIDDEN"));
 
         assertThat(connectionRepository.findByUserId(owner.getId())).isEmpty();
     }
@@ -229,7 +259,12 @@ class GoogleCalendarControllerTest {
 
     private CalendarConnection saveConnection(User user, String calendarId) {
         CalendarConnection connection = CalendarConnection.connect(
-                user, null, "encrypted-refresh-token", "encrypted-access-token", Instant.now().plusSeconds(3600));
+                user,
+                null,
+                tokenCipher.encrypt("raw-refresh-token"),
+                tokenCipher.encrypt("raw-access-token"),
+                Instant.now().plusSeconds(3600)
+        );
         connection.markConnected(calendarId);
         return connectionRepository.save(connection);
     }

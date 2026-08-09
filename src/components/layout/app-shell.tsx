@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/features/auth/logout-button";
 import type { CurrentUserViewModel } from "@/features/auth/api/dto";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { ALL_NAVIGATION_ITEMS, APP_NAVIGATION_ITEMS, SETTINGS_NAVIGATION_ITEM } from "@/lib/constants/navigation";
 import type { NavigationItem } from "@/lib/constants/navigation";
 import { cn } from "@/lib/utils/cn";
@@ -21,6 +22,10 @@ function isActivePath(pathname: string, href: string): boolean {
 }
 
 function findCurrentTitle(pathname: string): string {
+  if (pathname === "/notifications" || pathname.startsWith("/notifications/")) {
+    return "알림";
+  }
+
   return ALL_NAVIGATION_ITEMS.find((item) => isActivePath(pathname, item.href))?.label ?? "CareerDock";
 }
 
@@ -226,8 +231,11 @@ export function AppShell({ children, currentUser }: AppShellProps) {
                 <p className="hidden text-caption text-neutral-600 sm:block">CareerDock workspace</p>
               </div>
             </div>
-            <div className="min-w-0 rounded-control border border-neutral-200 bg-neutral-50 px-3 py-2 text-caption text-neutral-600">
-              <span className="block max-w-[180px] truncate">{currentUser.name}</span>
+            <div className="flex min-w-0 items-center gap-2">
+              <NotificationBell />
+              <div className="hidden min-w-0 rounded-control border border-neutral-200 bg-neutral-50 px-3 py-2 text-caption text-neutral-600 sm:block">
+                <span className="block max-w-[180px] truncate">{currentUser.name}</span>
+              </div>
             </div>
           </div>
         </header>

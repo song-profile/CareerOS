@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CopyField } from "@/components/ui/copy-field";
 import { LinkButton } from "@/components/ui/link-button";
+import { CredentialDeleteButton } from "@/features/materials/components/credential-delete-button";
 import { CredentialNumberField } from "@/features/materials/components/credential-number-field";
 import { CredentialValidityBadge } from "@/features/materials/components/credential-validity-badge";
 import { formatCredentialDate } from "@/features/materials/credential-utils";
@@ -129,6 +130,10 @@ export function CredentialDetailView({ credential }: CredentialDetailViewProps) 
               >
                 목록으로
               </LinkButton>
+              <CredentialDeleteButton
+                credentialId={credential.id}
+                credentialName={credential.name}
+              />
             </div>
           </div>
         </CardContent>

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.careerdock.user.domain.AuthProvider;
 import com.careerdock.user.domain.User;
 import com.careerdock.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,17 +50,21 @@ class OAuthUserProvisionerTest {
         assertThat(result.getProvider()).isEqualTo(AuthProvider.GOOGLE);
         assertThat(result.getProviderUserId()).isEqualTo("google-subject-1");
         assertThat(result.getEmail()).isEqualTo("user@example.com");
+        assertThat(result.getName()).isEqualTo("사용자");
+        assertThat(result.getLastLoginAt()).isNotNull();
         verify(userRepository).save(any(User.class));
     }
 
     @Test
-    void updatesExistingGoogleUserWithoutDuplicateCreation() {
+    void updatesExistingGoogleUserWithoutDuplicateCreation() throws Exception {
         User existingUser = User.createGoogleUser(
                 "google-subject-1",
                 "old@example.com",
                 "기존 사용자",
                 null
         );
+        Instant previousLoginAt = existingUser.getLastLoginAt();
+        Thread.sleep(2L);
         GoogleOAuthAttributes attributes = new GoogleOAuthAttributes(
                 "google-subject-1",
                 "new@example.com",
@@ -75,6 +80,7 @@ class OAuthUserProvisionerTest {
         assertThat(result.getEmail()).isEqualTo("new@example.com");
         assertThat(result.getName()).isEqualTo("새 이름");
         assertThat(result.getProfileImageUrl()).isEqualTo("https://example.com/profile.png");
+        assertThat(result.getLastLoginAt()).isAfter(previousLoginAt);
         verify(userRepository, never()).save(any(User.class));
     }
 }

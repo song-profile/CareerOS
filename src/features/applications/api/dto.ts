@@ -72,3 +72,71 @@ export interface ApplicationQueryDto {
   deadlineFrom?: string;
   deadlineTo?: string;
 }
+
+export interface ApplicationFileResourceDto {
+  id: number;
+  fileAssetId: number;
+  category: string;
+  displayName: string;
+  originalFilename: string;
+  mimeType: string;
+  size: number;
+  lockedVersion: number;
+  downloadUrl: string;
+  purpose: string | null;
+  linkedAt: string;
+}
+
+export interface ApplicationCredentialResourceDto {
+  id: number;
+  credentialId: number;
+  credentialType: string;
+  name: string;
+  issuer: string | null;
+  purpose: string | null;
+  linkedAt: string;
+}
+
+export interface ApplicationExternalLinkResourceDto {
+  id: number;
+  externalLinkId: number;
+  linkType: string;
+  displayName: string;
+  url: string;
+  purpose: string | null;
+  linkedAt: string;
+}
+
+export interface EssayQuestionSummaryDto {
+  id: number;
+  questionOrder: number;
+  questionText: string;
+  commonQuestionType: string;
+  hasSubmittedAnswer: boolean;
+  submittedAnswerId: number | null;
+  submittedAnswerVersion: number | null;
+  submittedAt: string | null;
+}
+
+export interface ApplicationResourcesDto {
+  applicationId: number;
+  files: ApplicationFileResourceDto[];
+  credentials: ApplicationCredentialResourceDto[];
+  externalLinks: ApplicationExternalLinkResourceDto[];
+  essayQuestions: EssayQuestionSummaryDto[];
+}
+
+export interface LinkFileRequestDto {
+  fileAssetId: number;
+  purpose: string | null;
+}
+
+export interface LinkCredentialRequestDto {
+  credentialId: number;
+  purpose: string | null;
+}
+
+export interface LinkExternalLinkRequestDto {
+  externalLinkId: number;
+  purpose: string | null;
+}

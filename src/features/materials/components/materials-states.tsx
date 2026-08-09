@@ -1,10 +1,7 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LinkButton } from "@/components/ui/link-button";
-
-function SkeletonBlock({ className }: { className: string }) {
-  return <div className={`rounded-control bg-neutral-100 ${className}`} />;
-}
+import { SkeletonBlock } from "@/components/ui/skeleton";
+import { ErrorStateCard, StateCard } from "@/components/ui/state-card";
 
 export function ProfileSkeleton() {
   return (
@@ -137,26 +134,13 @@ export function MaterialsEmptyState({
   title,
 }: MaterialsEmptyStateProps) {
   return (
-    <Card>
-      <CardContent>
-        <div className="grid gap-3">
-          <div className="grid gap-1">
-            <p className="text-body-medium text-neutral-900">{title}</p>
-            <p className="text-body text-neutral-600">{description}</p>
-          </div>
-          {actionHref && actionLabel ? (
-            <LinkButton className="w-full sm:w-fit" href={actionHref} size="sm">
-              {actionLabel}
-            </LinkButton>
-          ) : null}
-          {onAction && actionLabel && !actionHref ? (
-            <Button className="w-full sm:w-fit" onClick={onAction} size="sm" variant="secondary">
-              {actionLabel}
-            </Button>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
+    <StateCard
+      actionHref={actionHref}
+      actionLabel={actionLabel}
+      description={description}
+      onAction={onAction}
+      title={title}
+    />
   );
 }
 
@@ -167,21 +151,7 @@ interface MaterialsErrorStateProps {
 
 /** 서버 메시지와 민감한 값은 노출하지 않는다. */
 export function MaterialsErrorState({ onRetry, title }: MaterialsErrorStateProps) {
-  return (
-    <Card>
-      <CardContent>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid gap-1">
-            <p className="text-body-medium text-neutral-900">{title}</p>
-            <p className="text-body text-neutral-600">잠시 후 다시 시도해 주세요.</p>
-          </div>
-          <Button className="w-full sm:w-fit" onClick={onRetry} size="sm" variant="secondary">
-            다시 시도
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <ErrorStateCard onRetry={onRetry} title={title} />;
 }
 
 export function CredentialNotFoundState() {

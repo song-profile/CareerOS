@@ -7,7 +7,7 @@ import { getGoogleOAuthStartUrl } from "@/features/auth/api/oauth-api";
 export function GoogleLoginButton() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const googleOAuthStartUrl = getGoogleOAuthStartUrl();
+  const [googleOAuthStartUrl] = useState(() => getGoogleOAuthStartUrl());
   const disabled = !googleOAuthStartUrl || loading;
 
   function handleGoogleLogin() {

@@ -47,10 +47,11 @@ public class GoogleCalendarController {
     public void callback(
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String state,
+            @RequestParam(required = false) String error,
             HttpSession session,
             HttpServletResponse response
     ) throws IOException {
-        syncService.handleCallback(currentUserAccessor.getCurrentUserId(), session, code, state, response);
+        syncService.handleCallback(currentUserAccessor.getCurrentUserId(), session, code, state, error, response);
     }
 
     @GetMapping("/status")

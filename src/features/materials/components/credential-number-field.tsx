@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/components/ui/copy-field";
-import { fetchCredentialNumber } from "@/features/materials/api/credential-api";
-import { getApiErrorMessage } from "@/lib/api/errors";
+import { getCredentialNumber } from "@/features/materials/materials-service";
+import { cn } from "@/lib/utils/cn";
 
 interface CredentialNumberFieldProps {
   credentialId: string;
@@ -30,6 +30,7 @@ export function CredentialNumberField({
   const [revealed, setRevealed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
+  const [noticeFailed, setNoticeFailed] = useState(false);
 
   async function loadNumber(): Promise<string | null> {
     if (plainNumber !== null) {
@@ -37,19 +38,22 @@ export function CredentialNumberField({
     }
 
     setLoading(true);
-    setNotice("");
+    setNotice("조회 중");
+    setNoticeFailed(false);
 
-    try {
-      const value = await fetchCredentialNumber(credentialId);
-      setPlainNumber(value);
-      return value;
-    } catch (error) {
+    const result = await getCredentialNumber(credentialId);
+    setLoading(false);
+
+    if (!result.ok) {
       // 값은 어떤 경로로도 메시지에 넣지 않는다.
-      setNotice(getApiErrorMessage(error, "자격번호를 조회"));
+      setNotice(result.message);
+      setNoticeFailed(true);
       return null;
-    } finally {
-      setLoading(false);
     }
+
+    setPlainNumber(result.value);
+    setNotice("");
+    return result.value;
   }
 
   async function handleToggle() {
@@ -72,8 +76,11 @@ export function CredentialNumberField({
 
     const succeeded = await copyToClipboard(value);
     setNotice(succeeded ? "복사됨" : "복사 실패");
+    setNoticeFailed(!succeeded);
     window.setTimeout(() => setNotice(""), 2000);
   }
+
+  const disabled = !hasCredentialNumber || loading;
 
   return (
     <div className="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -81,9 +88,10 @@ export function CredentialNumberField({
 
       <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 sm:justify-end">
         <span
-          className={`min-w-0 break-all font-mono text-mono ${
-            hasCredentialNumber ? "text-neutral-900" : "text-neutral-400"
-          }`}
+          className={cn(
+            "min-w-0 break-all font-mono text-mono",
+            hasCredentialNumber ? "text-neutral-900" : "text-neutral-400",
+          )}
         >
           {!hasCredentialNumber
             ? "미입력"
@@ -93,12 +101,16 @@ export function CredentialNumberField({
         </span>
 
         <div className="flex shrink-0 items-center gap-2">
-          <span aria-live="polite" className="text-caption text-neutral-600" role="status">
+          <span
+            aria-live="polite"
+            className={cn("text-caption", noticeFailed ? "text-danger-600" : "text-success-700")}
+            role="status"
+          >
             {notice}
           </span>
           <Button
             aria-label={revealed ? "자격번호 가리기" : "자격번호 전체 보기"}
-            disabled={!hasCredentialNumber || loading}
+            disabled={disabled}
             onClick={() => void handleToggle()}
             size="sm"
             variant="ghost"
@@ -107,7 +119,7 @@ export function CredentialNumberField({
           </Button>
           <Button
             aria-label="자격번호 복사"
-            disabled={!hasCredentialNumber || loading}
+            disabled={disabled}
             onClick={() => void handleCopy()}
             size="sm"
             variant="secondary"

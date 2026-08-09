@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { getDDayLabel, getDaysUntil, getDeadlineTone } from "@/features/dashboard/date-utils";
+import { getDDayLabel, getDeadlineTone } from "@/features/dashboard/date-utils";
 import type { DeadlineTone } from "@/features/dashboard/date-utils";
 
 const toneVariant: Record<
@@ -14,11 +14,10 @@ const toneVariant: Record<
 };
 
 interface DDayChipProps {
-  date: Date;
+  daysUntil: number;
 }
 
-export function DDayChip({ date }: DDayChipProps) {
-  const daysUntil = getDaysUntil(date);
+export function DDayChip({ daysUntil }: DDayChipProps) {
   const tone = getDeadlineTone(daysUntil);
 
   return <Badge variant={toneVariant[tone]}>{getDDayLabel(daysUntil)}</Badge>;

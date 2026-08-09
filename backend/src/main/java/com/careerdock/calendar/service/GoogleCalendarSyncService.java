@@ -18,6 +18,7 @@ import com.careerdock.user.repository.UserRepository;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.auth.oauth2.CredentialRefreshListener;
 import com.google.api.client.auth.oauth2.TokenErrorResponse;
+import com.google.api.client.auth.oauth2.TokenResponseException;
 import com.google.api.client.auth.oauth2.TokenResponse;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.services.calendar.model.Event;
@@ -47,7 +48,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class GoogleCalendarSyncService {
 
     private static final Logger log = LoggerFactory.getLogger(GoogleCalendarSyncService.class);
-
     private static final String OAUTH_STATE_SESSION_KEY = "google_calendar_oauth_state";
     private static final String CALENDAR_SETTINGS_PATH = "/settings/calendar";
     private static final int MAX_RETRY_BATCH = 50;
@@ -95,10 +95,15 @@ public class GoogleCalendarSyncService {
             HttpSession session,
             String code,
             String state,
+            String error,
             HttpServletResponse response
     ) throws IOException {
         Object expectedState = session.getAttribute(OAUTH_STATE_SESSION_KEY);
         session.removeAttribute(OAUTH_STATE_SESSION_KEY);
+        if (error != null && !error.isBlank()) {
+            redirectWithResult(response, false, "GOOGLE_AUTH_DENIED");
+            return;
+        }
         if (expectedState == null || !expectedState.equals(state) || code == null || code.isBlank()) {
             // state/code 값 자체는 남기지 않는다. 무엇이 비었는지만 알면 원인 구분은 충분하다.
             log.warn("google calendar 연결 실패: userId={}, endpoint=/api/calendar/oauth/callback, reason=INVALID_REQUEST, "
@@ -122,13 +127,30 @@ public class GoogleCalendarSyncService {
                 return;
             }
 
-            CalendarConnection connection = upsertConnection(userId, tokenResponse, refreshToken);
-            Credential credential = credentialFor(connection);
-            String calendarId = apiClient.findOrCreateCalendar(credential, connection.getGoogleCalendarId());
-            connection.markConnected(calendarId);
+            String existingCalendarId = connectionRepository.findByUserId(userId)
+                    .map(CalendarConnection::getGoogleCalendarId)
+                    .orElse(null);
+            Credential credential = googleOAuthService.buildCredential(
+                    tokenResponse.getAccessToken(),
+                    refreshToken,
+                    expiresAt(tokenResponse),
+                    null
+            );
+            String calendarId = apiClient.findOrCreateCalendar(credential, existingCalendarId);
+            CalendarConnection connection = upsertConnection(userId, tokenResponse, refreshToken, calendarId);
 
             log.info("google calendar 연결 완료: userId={}, connectionId={}", userId, connection.getId());
             redirectWithResult(response, true, null);
+        } catch (CareerdockException exception) {
+            String reason = exception.errorCode().code();
+            log.warn("Google Calendar OAuth callback failed. userId={}, reason={}, exception={}",
+                    userId, reason, exception.getClass().getSimpleName());
+            redirectWithResult(response, false, reason);
+        } catch (IOException exception) {
+            String reason = oauthFailureReason(exception);
+            log.warn("Google Calendar OAuth token exchange failed. userId={}, reason={}, exception={}",
+                    userId, reason, exception.getClass().getSimpleName());
+            redirectWithResult(response, false, reason);
         } catch (RuntimeException exception) {
             // 예외 메시지에는 code/token이 들어갈 수 있어 클래스 이름만 남긴다.
             log.warn("google calendar 연결 실패: userId={}, endpoint=/api/calendar/oauth/callback, "
@@ -137,7 +159,12 @@ public class GoogleCalendarSyncService {
         }
     }
 
-    private CalendarConnection upsertConnection(Long userId, GoogleTokenResponse tokenResponse, String refreshToken) {
+    private CalendarConnection upsertConnection(
+            Long userId,
+            GoogleTokenResponse tokenResponse,
+            String refreshToken,
+            String calendarId
+    ) {
         String encryptedRefresh = tokenCipher.encrypt(refreshToken);
         String encryptedAccess = tokenCipher.encrypt(tokenResponse.getAccessToken());
         Instant expiresAt = expiresAt(tokenResponse);
@@ -145,14 +172,32 @@ public class GoogleCalendarSyncService {
         return connectionRepository.findByUserId(userId)
                 .map(existing -> {
                     existing.reconnect(null, encryptedRefresh, encryptedAccess, expiresAt);
+                    existing.markConnected(calendarId);
                     return existing;
                 })
                 .orElseGet(() -> {
                     User user = userRepository.findById(userId)
                             .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
-                    return connectionRepository.save(
-                            CalendarConnection.connect(user, null, encryptedRefresh, encryptedAccess, expiresAt));
+                    CalendarConnection connection = CalendarConnection.connect(
+                            user, null, encryptedRefresh, encryptedAccess, expiresAt);
+                    connection.markConnected(calendarId);
+                    return connectionRepository.save(connection);
                 });
+    }
+
+    private String oauthFailureReason(IOException exception) {
+        if (exception instanceof TokenResponseException tokenResponseException) {
+            String googleError = tokenResponseException.getDetails() == null
+                    ? null
+                    : tokenResponseException.getDetails().getError();
+            if ("access_denied".equals(googleError)) {
+                return "GOOGLE_AUTH_DENIED";
+            }
+            if ("invalid_grant".equals(googleError) || "invalid_request".equals(googleError)) {
+                return "INVALID_REQUEST";
+            }
+        }
+        return "GOOGLE_TOKEN_EXCHANGE_FAILED";
     }
 
     @Transactional(readOnly = true)
