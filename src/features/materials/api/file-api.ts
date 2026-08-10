@@ -37,6 +37,16 @@ export const fileApi = {
       path: apiEndpoints.files.detail,
       response: toMaterialFileViewModel,
     }),
+    versions: defineEndpoint<void, FileAssetDto[], MaterialFile[]>({
+      method: "GET",
+      path: apiEndpoints.files.versions,
+      response: (dtos) => dtos.map(toMaterialFileViewModel),
+    }),
+    uploadVersion: defineEndpoint<UploadFilePayload, FileAssetDto, MaterialFile>({
+      method: "POST",
+      path: apiEndpoints.files.versions,
+      response: toMaterialFileViewModel,
+    }),
     download: defineEndpoint({
       method: "GET",
       path: apiEndpoints.files.download,
@@ -62,6 +72,11 @@ export async function fetchFile(id: string): Promise<MaterialFile> {
   return toMaterialFileViewModel(dto);
 }
 
+export async function fetchFileVersions(id: string): Promise<MaterialFile[]> {
+  const dtos = await apiClient<FileAssetDto[]>(apiEndpoints.files.versions(id));
+  return dtos.map(toMaterialFileViewModel);
+}
+
 export async function uploadFile(payload: UploadFilePayload): Promise<MaterialFile> {
   const formData = new FormData();
   formData.append("file", payload.file);
@@ -85,6 +100,26 @@ export async function uploadMaterialFile(
   displayName?: string,
 ): Promise<MaterialFile> {
   return uploadFile({ file, category: toFileCategoryDto(type), displayName });
+}
+
+export async function uploadFileVersion(
+  fileId: string,
+  file: File,
+  displayName?: string,
+): Promise<MaterialFile> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  if (displayName?.trim()) {
+    formData.append("displayName", displayName.trim());
+  }
+
+  const dto = await apiClient<FileAssetDto>(apiEndpoints.files.versions(fileId), {
+    method: "POST",
+    body: formData,
+  });
+
+  return toMaterialFileViewModel(dto);
 }
 
 export function getFileDownloadUrl(id: string): string {
@@ -119,6 +154,8 @@ export const fileApiContract: ApiModuleContract = {
     "GET /api/files",
     "POST /api/files",
     "GET /api/files/{id}",
+    "GET /api/files/{id}/versions",
+    "POST /api/files/{id}/versions",
     "GET /api/files/{id}/download",
     "DELETE /api/files/{id}",
   ],

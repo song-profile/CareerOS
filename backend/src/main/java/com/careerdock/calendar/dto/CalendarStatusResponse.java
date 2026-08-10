@@ -10,6 +10,7 @@ import java.util.Map;
  */
 public record CalendarStatusResponse(
         boolean connected,
+        boolean autoSyncEnabled,
         SyncStatus status,
         Instant connectedAt,
         Instant lastSyncedAt,
@@ -17,6 +18,6 @@ public record CalendarStatusResponse(
         Map<SyncStatus, Long> eventCounts
 ) {
     public static CalendarStatusResponse notConnected(Map<SyncStatus, Long> eventCounts) {
-        return new CalendarStatusResponse(false, null, null, null, null, eventCounts);
+        return new CalendarStatusResponse(false, false, null, null, null, null, eventCounts);
     }
 }

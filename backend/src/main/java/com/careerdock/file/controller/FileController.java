@@ -51,6 +51,21 @@ public class FileController {
         return fileService.upload(currentUserAccessor.getCurrentUserId(), category, displayName, file);
     }
 
+    @GetMapping("/{id}/versions")
+    public List<FileAssetResponse> findVersions(@PathVariable Long id) {
+        return fileService.findVersions(currentUserAccessor.getCurrentUserId(), id);
+    }
+
+    @PostMapping("/{id}/versions")
+    @ResponseStatus(HttpStatus.CREATED)
+    public FileAssetResponse uploadVersion(
+            @PathVariable Long id,
+            @RequestParam(name = "file", required = false) MultipartFile file,
+            @RequestParam(required = false) String displayName
+    ) {
+        return fileService.uploadVersion(currentUserAccessor.getCurrentUserId(), id, displayName, file);
+    }
+
     @GetMapping("/{id}")
     public FileAssetResponse findOne(@PathVariable Long id) {
         return fileService.findOne(currentUserAccessor.getCurrentUserId(), id);

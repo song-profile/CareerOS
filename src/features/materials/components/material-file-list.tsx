@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent, FormEvent } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +13,9 @@ import { Toast } from "@/components/ui/toast";
 import {
   deleteFile,
   downloadFileBlob,
+  fetchFileVersions,
   uploadMaterialFile,
+  uploadFileVersion,
 } from "@/features/materials/api/file-api";
 import { MaterialFileTypeBadge } from "@/features/materials/components/material-file-type-badge";
 import {
@@ -43,18 +45,39 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
   const [noticeTone, setNoticeTone] = useState<"success" | "error" | "info">("info");
   const [deleteTarget, setDeleteTarget] = useState<MaterialFile | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [versionTarget, setVersionTarget] = useState<MaterialFile | null>(null);
+  const [versionHistory, setVersionHistory] = useState<MaterialFile[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
 
   const visibleFiles = useMemo(
     () => filterMaterialFiles(items, searchQuery, typeFilter),
     [items, searchQuery, typeFilter],
   );
 
-  function showNotice(message: string, tone: "success" | "error" | "info" = "info") {
+  const showNotice = useCallback((message: string, tone: "success" | "error" | "info" = "info") => {
     setNotice(message);
     setNoticeTone(tone);
-  }
+  }, []);
 
-  function handlePreview(file: MaterialFile) {
+  const loadVersionHistory = useCallback(async (file: MaterialFile) => {
+    setVersionsLoading(true);
+    try {
+      setVersionHistory(await fetchFileVersions(file.id));
+    } catch (error) {
+      setVersionHistory([]);
+      showNotice(getApiErrorMessage(error, "버전 기록을 불러"), "error");
+    } finally {
+      setVersionsLoading(false);
+    }
+  }, [showNotice]);
+
+  useEffect(() => {
+    if (previewFile) {
+      void loadVersionHistory(previewFile);
+    }
+  }, [loadVersionHistory, previewFile]);
+
+  async function handlePreview(file: MaterialFile) {
     setPreviewFile(file);
     showNotice("다운로드 보안 정책상 브라우저 내 미리보기는 제공하지 않습니다.");
   }
@@ -84,10 +107,27 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
       );
       setItems((current) => [uploaded, ...current]);
       setPreviewFile(uploaded);
+      setVersionHistory([uploaded]);
       showNotice("파일을 업로드했습니다.", "success");
       return true;
     } catch (error) {
       showNotice(getApiErrorMessage(error, "파일을 업로드"), "error");
+      return false;
+    }
+  }
+
+  async function handleUploadVersion(values: VersionUploadFormValues): Promise<boolean> {
+    try {
+      const uploaded = await uploadFileVersion(values.fileId, values.file, values.displayName);
+      setItems((current) => [uploaded, ...current.map((item) =>
+        item.rootAssetId === uploaded.rootAssetId ? { ...item, latest: item.id === uploaded.id } : item,
+      )]);
+      setPreviewFile(uploaded);
+      setVersionHistory(await fetchFileVersions(uploaded.id));
+      showNotice(`v${uploaded.version}을 업로드했습니다.`, "success");
+      return true;
+    } catch (error) {
+      showNotice(getApiErrorMessage(error, "새 버전을 업로드"), "error");
       return false;
     }
   }
@@ -97,6 +137,7 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
       await deleteFile(file.id);
       setItems((current) => current.filter((item) => item.id !== file.id));
       setPreviewFile((current) => current?.id === file.id ? null : current);
+      setVersionHistory((current) => current.filter((item) => item.id !== file.id));
       setDeleteTarget(null);
       showNotice("파일을 삭제했습니다.", "success");
     } catch (error) {
@@ -158,13 +199,15 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
                   files={visibleFiles}
                   onDelete={setDeleteTarget}
                   onDownload={(file) => void handleDownload(file)}
-                  onPreview={handlePreview}
+                  onPreview={(file) => void handlePreview(file)}
+                  onUploadVersion={setVersionTarget}
                 />
                 <MaterialFileMobileList
                   files={visibleFiles}
                   onDelete={setDeleteTarget}
                   onDownload={(file) => void handleDownload(file)}
-                  onPreview={handlePreview}
+                  onPreview={(file) => void handlePreview(file)}
+                  onUploadVersion={setVersionTarget}
                 />
               </>
             ) : (
@@ -172,7 +215,12 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
             )}
           </div>
 
-          <MaterialFilePreview file={previewFile} />
+          <MaterialFilePreview
+            file={previewFile}
+            onDownload={(file) => void handleDownload(file)}
+            versions={versionHistory}
+            versionsLoading={versionsLoading}
+          />
         </div>
       </div>
 
@@ -184,6 +232,14 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
         <MaterialFileUploadDialog
           onClose={() => setUploadDialogOpen(false)}
           onUpload={handleUpload}
+        />
+      ) : null}
+
+      {versionTarget ? (
+        <MaterialFileVersionUploadDialog
+          file={versionTarget}
+          onClose={() => setVersionTarget(null)}
+          onUpload={handleUploadVersion}
         />
       ) : null}
 
@@ -203,6 +259,7 @@ interface MaterialFileActionProps {
   onDelete: (file: MaterialFile) => void;
   onDownload: (file: MaterialFile) => void;
   onPreview: (file: MaterialFile) => void;
+  onUploadVersion: (file: MaterialFile) => void;
 }
 
 function MaterialFileTable({
@@ -210,6 +267,7 @@ function MaterialFileTable({
   onDelete,
   onDownload,
   onPreview,
+  onUploadVersion,
 }: MaterialFileActionProps) {
   return (
     <DataTable
@@ -217,6 +275,7 @@ function MaterialFileTable({
         { key: "name", header: "파일명" },
         { key: "type", header: "파일유형" },
         { key: "createdAt", header: "업로드일" },
+        { key: "version", header: "버전" },
         { key: "size", header: "파일크기" },
         { key: "usage", header: "사용중 여부" },
         { key: "download", header: "다운로드" },
@@ -232,6 +291,8 @@ function MaterialFileTable({
             return <MaterialFileTypeBadge type={file.type} />;
           case "createdAt":
             return <span className="font-mono text-mono text-neutral-600">{formatMaterialFileDate(file.createdAt)}</span>;
+          case "version":
+            return <VersionBadge file={file} />;
           case "size":
             return <span className="font-mono text-mono text-neutral-600">{formatFileSize(file.size)}</span>;
           case "usage":
@@ -247,6 +308,9 @@ function MaterialFileTable({
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => onPreview(file)} size="sm" variant="secondary">
                   미리보기
+                </Button>
+                <Button onClick={() => onUploadVersion(file)} size="sm" variant="secondary">
+                  새 버전
                 </Button>
                 <Button onClick={() => onDelete(file)} size="sm" variant="danger">
                   삭제
@@ -266,6 +330,7 @@ function MaterialFileMobileList({
   onDelete,
   onDownload,
   onPreview,
+  onUploadVersion,
 }: MaterialFileActionProps) {
   return (
     <div className="grid gap-3 lg:hidden">
@@ -281,6 +346,7 @@ function MaterialFileMobileList({
                   <MaterialFileTypeBadge type={file.type} />
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <VersionBadge file={file} />
                   <span className="font-mono text-mono text-neutral-600">
                     {formatMaterialFileDate(file.createdAt)}
                   </span>
@@ -293,12 +359,15 @@ function MaterialFileMobileList({
                 </div>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-4">
                 <Button onClick={() => onDownload(file)} size="sm" variant="secondary">
                   다운로드
                 </Button>
                 <Button onClick={() => onPreview(file)} size="sm" variant="secondary">
                   미리보기
+                </Button>
+                <Button onClick={() => onUploadVersion(file)} size="sm" variant="secondary">
+                  새 버전
                 </Button>
                 <Button onClick={() => onDelete(file)} size="sm" variant="danger">
                   삭제
@@ -312,7 +381,17 @@ function MaterialFileMobileList({
   );
 }
 
-function MaterialFilePreview({ file }: { file: MaterialFile | null }) {
+function MaterialFilePreview({
+  file,
+  onDownload,
+  versions,
+  versionsLoading,
+}: {
+  file: MaterialFile | null;
+  onDownload: (file: MaterialFile) => void;
+  versions: MaterialFile[];
+  versionsLoading: boolean;
+}) {
   return (
     <Card className="xl:sticky xl:top-24">
       <CardContent>
@@ -328,6 +407,7 @@ function MaterialFilePreview({ file }: { file: MaterialFile | null }) {
             {file ? (
               <div className="grid gap-2">
                 <MaterialFileTypeBadge type={file.type} />
+                <VersionBadge file={file} />
                 <p className="break-words text-body-medium text-neutral-900">{file.fileName}</p>
                 <p className="font-mono text-mono text-neutral-600">
                   {formatFileSize(file.size)}
@@ -338,9 +418,60 @@ function MaterialFilePreview({ file }: { file: MaterialFile | null }) {
               <p className="text-body text-neutral-600">미리볼 파일을 선택하세요.</p>
             )}
           </div>
+
+          {file ? (
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-body-medium text-neutral-900">버전 기록</h3>
+                <span className="text-caption text-neutral-600">
+                  현재 v{versions[0]?.version ?? file.version}
+                </span>
+              </div>
+              {versionsLoading ? (
+                <p className="text-body text-neutral-600" role="status">
+                  버전 기록을 불러오는 중입니다.
+                </p>
+              ) : versions.length > 0 ? (
+                <div className="grid gap-2">
+                  {versions.map((version) => (
+                    <div
+                      className="grid gap-2 rounded-control border border-neutral-200 p-3"
+                      key={version.id}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <VersionBadge file={version} />
+                          <span className="text-body-medium text-neutral-900">
+                            {formatMaterialFileDate(version.createdAt)}
+                          </span>
+                        </div>
+                        <Button onClick={() => onDownload(version)} size="sm" variant="secondary">
+                          다운로드
+                        </Button>
+                      </div>
+                      <p className="break-words text-caption text-neutral-600">
+                        {version.fileName} · {formatFileSize(version.size)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-body text-neutral-600">버전 기록이 없습니다.</p>
+              )}
+            </div>
+          ) : null}
         </aside>
       </CardContent>
     </Card>
+  );
+}
+
+function VersionBadge({ file }: { file: MaterialFile }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Badge variant={file.latest ? "primary" : "neutral"}>v{file.version}</Badge>
+      {file.latest ? <span className="text-caption text-neutral-600">최신</span> : null}
+    </span>
   );
 }
 
@@ -394,6 +525,12 @@ function MaterialFileDeleteDialog({
 interface UploadFormValues {
   file: File;
   type: MaterialFileType;
+  displayName?: string;
+}
+
+interface VersionUploadFormValues {
+  fileId: string;
+  file: File;
   displayName?: string;
 }
 
@@ -487,6 +624,93 @@ function MaterialFileUploadDialog({
           </Button>
           <Button loading={submitting} type="submit">
             업로드
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
+function MaterialFileVersionUploadDialog({
+  file,
+  onClose,
+  onUpload,
+}: {
+  file: MaterialFile;
+  onClose: () => void;
+  onUpload: (values: VersionUploadFormValues) => Promise<boolean>;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [displayName, setDisplayName] = useState(file.fileName);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextFile = event.target.files?.[0] ?? null;
+
+    if (nextFile && nextFile.size > MATERIAL_FILE_MAX_SIZE_BYTES) {
+      setSelectedFile(null);
+      setError(`파일 크기는 ${formatFileSize(MATERIAL_FILE_MAX_SIZE_BYTES)} 이하여야 합니다.`);
+      event.target.value = "";
+      return;
+    }
+
+    setSelectedFile(nextFile);
+    setError("");
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedFile) {
+      setError("새 버전으로 올릴 파일을 선택해 주세요.");
+      fileInputRef.current?.focus();
+      return;
+    }
+
+    setSubmitting(true);
+    const uploaded = await onUpload({
+      fileId: file.id,
+      file: selectedFile,
+      displayName: displayName.trim() || undefined,
+    });
+    setSubmitting(false);
+
+    if (uploaded) {
+      onClose();
+    }
+  }
+
+  return (
+    <Dialog
+      className="max-w-lg"
+      description={`현재 v${file.version}입니다. 새 버전을 업로드해도 과거 지원 건 연결은 기존 버전을 유지합니다.`}
+      onClose={onClose}
+      title="새 버전 업로드"
+    >
+      <form className="grid gap-4" onSubmit={handleSubmit}>
+        <Input
+          ref={fileInputRef}
+          errorMessage={error}
+          helperText={`최대 ${formatFileSize(MATERIAL_FILE_MAX_SIZE_BYTES)}까지 업로드할 수 있습니다.`}
+          label="파일"
+          onChange={handleFileChange}
+          required
+          type="file"
+        />
+        <Input
+          helperText="비워 두면 기존 표시 이름을 사용합니다."
+          label="표시 이름"
+          onChange={(event) => setDisplayName(event.target.value)}
+          value={displayName}
+        />
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button disabled={submitting} onClick={onClose} type="button" variant="secondary">
+            취소
+          </Button>
+          <Button loading={submitting} type="submit">
+            새 버전 업로드
           </Button>
         </div>
       </form>

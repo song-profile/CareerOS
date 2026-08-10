@@ -51,6 +51,10 @@ export const calendarApi = {
       method: "GET",
       path: apiEndpoints.calendar.status,
     }),
+    autoSync: defineEndpoint<{ enabled: boolean }, CalendarStatusResponseDto>({
+      method: "PATCH",
+      path: apiEndpoints.calendar.autoSync,
+    }),
     sync: defineEndpoint<void, CalendarSyncResponseDto>({
       method: "POST",
       path: apiEndpoints.calendar.sync,
@@ -119,6 +123,13 @@ export async function fetchGoogleCalendarStatus(): Promise<CalendarStatusRespons
   return apiClient<CalendarStatusResponseDto>(apiEndpoints.calendar.status);
 }
 
+export async function updateGoogleCalendarAutoSync(enabled: boolean): Promise<CalendarStatusResponseDto> {
+  return apiClient<CalendarStatusResponseDto>(apiEndpoints.calendar.autoSync, {
+    method: "PATCH",
+    body: { enabled },
+  });
+}
+
 export async function syncGoogleCalendar(): Promise<CalendarSyncResponseDto> {
   return apiClient<CalendarSyncResponseDto>(apiEndpoints.calendar.sync, { method: "POST" });
 }
@@ -146,6 +157,7 @@ export const calendarApiContract: ApiModuleContract = {
     "DELETE /api/calendar/events/{id}",
     "POST /api/calendar/connect",
     "GET /api/calendar/status",
+    "PATCH /api/calendar/auto-sync",
     "POST /api/calendar/sync",
     "DELETE /api/calendar/disconnect",
     "POST /api/calendar/test-event",

@@ -12,6 +12,7 @@ import {
   disconnectGoogleCalendar,
   fetchGoogleCalendarStatus,
   syncGoogleCalendar,
+  updateGoogleCalendarAutoSync,
 } from "@/features/calendar/api/calendar-api";
 import type { CalendarStatusResponseDto } from "@/features/calendar/api/dto";
 import type { CalendarSyncStatus } from "@/features/calendar/types";
@@ -19,7 +20,7 @@ import { createApiUrl } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import { getApiClientErrorMessage } from "@/lib/api/error-message";
 
-type Action = "connect" | "sync" | "disconnect" | "test";
+type Action = "connect" | "sync" | "disconnect" | "test" | "autoSync";
 
 interface GoogleCalendarSettingsProps {
   callbackResult?: "success" | "failure";
@@ -49,6 +50,7 @@ export function GoogleCalendarSettings({
   callbackResult,
 }: GoogleCalendarSettingsProps) {
   const calendarRedirectUri = useMemo(() => createApiUrl(apiEndpoints.calendar.oauthCallback), []);
+  const showDeveloperActions = process.env.NODE_ENV !== "production";
   const [status, setStatus] = useState<CalendarStatusResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeAction, setActiveAction] = useState<Action | null>(null);
@@ -117,6 +119,19 @@ export function GoogleCalendarSettings({
     }
   }
 
+  async function handleAutoSyncChange(enabled: boolean) {
+    setActiveAction("autoSync");
+    setErrorMessage("");
+    try {
+      setStatus(await updateGoogleCalendarAutoSync(enabled));
+      setNotice(enabled ? "자동 동기화를 켰습니다." : "자동 동기화를 껐습니다.");
+    } catch (error) {
+      setErrorMessage(getApiClientErrorMessage(error, "자동 동기화 설정을 변경할 수 없습니다."));
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
   async function handleTestEvent() {
     setActiveAction("test");
     setErrorMessage("");
@@ -152,6 +167,9 @@ export function GoogleCalendarSettings({
 
   const connected = status?.connected ?? false;
   const currentStatus = status?.status ?? "NOT_CONNECTED";
+  const autoSyncEnabled = Boolean(status?.autoSyncEnabled);
+  const syncedCount = status?.eventCounts.SYNCED ?? 0;
+  const failedCount = status?.eventCounts.FAILED ?? 0;
 
   return (
     <div className="grid gap-4">
@@ -174,7 +192,7 @@ export function GoogleCalendarSettings({
             <div className="grid gap-1">
               <h2 className="text-h2 text-neutral-900">Google Calendar</h2>
               <p className="text-body text-neutral-600">
-                CareerDock이 만든 전용 캘린더에 내부 일정을 생성, 수정, 삭제합니다.
+                CareerDock 일정을 전용 Google Calendar에 자동 반영합니다.
               </p>
             </div>
             <Badge variant={connected ? (currentStatus === "FAILED" ? "danger" : "success") : "neutral"}>
@@ -186,15 +204,43 @@ export function GoogleCalendarSettings({
           <div className="grid gap-5">
             <div className="grid gap-3 rounded-control border border-neutral-200 p-4">
               <StatusRow label="연결 상태" value={connected ? "연결됨" : "연결되지 않음"} />
+              <StatusRow label="자동 동기화" value={autoSyncEnabled ? "ON" : "OFF"} />
               <StatusRow label="연결 시각" value={formatNullableDate(status?.connectedAt)} />
               <StatusRow label="마지막 동기화" value={formatNullableDate(status?.lastSyncedAt)} />
               <StatusRow label="마지막 오류" value={status?.lastSyncError ?? "없음"} />
             </div>
 
-            <div className="grid gap-2 rounded-control border border-neutral-200 p-4">
-              <p className="text-body-medium text-neutral-900">일정 상태</p>
+            <div className="grid gap-4 rounded-control border border-neutral-200 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="grid gap-1">
+                  <p className="text-body-medium text-neutral-900">자동 동기화</p>
+                  <p className="text-body text-neutral-600">
+                    CareerDock에서 만든 일정 변경을 Google Calendar에 자동 반영합니다.
+                  </p>
+                </div>
+                <label className="inline-flex items-center gap-2 text-body-medium text-neutral-900">
+                  <input
+                    checked={autoSyncEnabled}
+                    className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                    disabled={!connected || activeAction !== null}
+                    onChange={(event) => void handleAutoSyncChange(event.currentTarget.checked)}
+                    type="checkbox"
+                  />
+                  {autoSyncEnabled ? "ON" : "OFF"}
+                </label>
+              </div>
+
+              <div className="grid gap-2">
+                <p className="text-caption text-neutral-600">동기화 대상</p>
+                <div className="flex flex-wrap gap-2">
+                  {["지원 마감", "코딩테스트", "인적성/NCS", "과제", "면접", "결과 발표"].map((label) => (
+                    <Badge key={label} variant="primary">{label}</Badge>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid gap-2 sm:grid-cols-4">
-                {(["NOT_CONNECTED", "PENDING", "SYNCED", "FAILED"] as CalendarSyncStatus[]).map((item) => (
+                {(["SYNCED", "FAILED", "NOT_CONNECTED", "PENDING"] as CalendarSyncStatus[]).map((item) => (
                   <div className="rounded-control bg-neutral-50 p-3" key={item}>
                     <p className="text-caption text-neutral-600">{syncStatusLabel[item]}</p>
                     <p className="text-h3 text-neutral-900">{status?.eventCounts[item] ?? 0}</p>
@@ -223,16 +269,25 @@ export function GoogleCalendarSettings({
                 onClick={handleSync}
                 variant="secondary"
               >
-                재동기화
+                기존 일정 동기화
               </Button>
               <Button
-                disabled={!connected || activeAction !== null}
-                loading={activeAction === "test"}
-                onClick={handleTestEvent}
+                disabled={!connected}
+                onClick={() => window.open("https://calendar.google.com/calendar/u/0/r", "_blank", "noopener,noreferrer")}
                 variant="secondary"
               >
-                테스트 이벤트
+                Google Calendar 열기
               </Button>
+              {showDeveloperActions ? (
+                <Button
+                  disabled={!connected || activeAction !== null}
+                  loading={activeAction === "test"}
+                  onClick={handleTestEvent}
+                  variant="secondary"
+                >
+                  테스트 이벤트
+                </Button>
+              ) : null}
               <Button
                 disabled={!connected || activeAction !== null}
                 onClick={() => setDisconnectOpen(true)}
@@ -251,7 +306,7 @@ export function GoogleCalendarSettings({
             <p className="text-body-medium text-neutral-900">동기화 정책</p>
             <p>Google 로그인만으로는 Calendar 권한을 요청하지 않습니다. 이 화면의 연결 버튼을 누를 때만 추가 동의를 요청합니다.</p>
             <p>CareerDock은 사용자의 기본 캘린더 전체를 임의로 수정하지 않고, CareerDock 전용 Google Calendar에 만든 이벤트만 갱신합니다.</p>
-            <p>연결 해제 시 저장된 연결 정보와 동기화 ID를 제거하고, Google 토큰 revoke를 best-effort로 시도합니다.</p>
+            <p>최근 동기화: 정상 {syncedCount}개 / 실패 {failedCount}개</p>
             <div className="mt-2 grid gap-1 rounded-control border border-neutral-200 bg-neutral-50 p-3">
               <p className="text-caption text-neutral-600">Google Cloud Console에 추가할 Calendar 승인된 리디렉션 URI</p>
               <code className="break-all rounded-control bg-neutral-0 px-2 py-1 text-caption text-neutral-900">

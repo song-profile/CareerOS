@@ -181,7 +181,7 @@ function MobileNavigation({
 }
 
 export function AppShell({ children, currentUser }: AppShellProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const title = findCurrentTitle(pathname);

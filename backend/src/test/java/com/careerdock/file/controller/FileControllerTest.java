@@ -14,6 +14,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.careerdock.file.repository.FileAssetRepository;
+import com.careerdock.application.domain.Application;
+import com.careerdock.application.domain.ApplicationStatus;
+import com.careerdock.application.domain.RecruitmentSeason;
+import com.careerdock.application.repository.ApplicationRepository;
+import com.careerdock.company.domain.Company;
+import com.careerdock.company.repository.CompanyRepository;
 import com.careerdock.global.auth.CareerdockOAuth2User;
 import com.careerdock.global.auth.LoginUser;
 import com.careerdock.user.domain.AuthProvider;
@@ -49,6 +55,8 @@ class FileControllerTest {
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private UserRepository userRepository;
     @Autowired private FileAssetRepository fileAssetRepository;
+    @Autowired private CompanyRepository companyRepository;
+    @Autowired private ApplicationRepository applicationRepository;
 
     @Value("${app.file.storage-path}")
     private String storagePath;
@@ -177,6 +185,113 @@ class FileControllerTest {
     }
 
     @Test
+    void uploadsNewVersionAndKeepsVersionHistory() throws Exception {
+        long v1Id = upload(owner, pdf("portfolio-v1.pdf"), "PORTFOLIO");
+
+        String versionResponse = mockMvc.perform(multipart("/api/files/{id}/versions", v1Id)
+                        .file(pdf("portfolio-v2.pdf"))
+                        .param("displayName", "포트폴리오")
+                        .with(authentication(auth(owner))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.parentAssetId").value(v1Id))
+                .andExpect(jsonPath("$.rootAssetId").value(v1Id))
+                .andExpect(jsonPath("$.latest").value(true))
+                .andReturn().getResponse().getContentAsString();
+        long v2Id = objectMapper.readTree(versionResponse).get("id").asLong();
+
+        mockMvc.perform(get("/api/files/{id}/versions", v2Id).with(authentication(auth(owner))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(v2Id))
+                .andExpect(jsonPath("$[0].version").value(2))
+                .andExpect(jsonPath("$[0].latest").value(true))
+                .andExpect(jsonPath("$[1].id").value(v1Id))
+                .andExpect(jsonPath("$[1].version").value(1))
+                .andExpect(jsonPath("$[1].latest").value(false));
+
+        mockMvc.perform(get("/api/files/{id}/download", v1Id).with(authentication(auth(owner))))
+                .andExpect(status().isOk())
+                .andExpect(content().bytes("%PDF-1.4 test".getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    void applicationKeepsLinkedFileVersionAfterNewVersionUpload() throws Exception {
+        long v1Id = upload(owner, pdf("portfolio-v1.pdf"), "PORTFOLIO");
+        Application application = saveApplication(owner);
+
+        mockMvc.perform(post("/api/applications/{applicationId}/files", application.getId())
+                        .with(authentication(auth(owner)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "fileAssetId": %d,
+                                  "purpose": "포트폴리오 제출본"
+                                }
+                                """.formatted(v1Id)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fileAssetId").value(v1Id))
+                .andExpect(jsonPath("$.lockedVersion").value(1));
+
+        String versionResponse = mockMvc.perform(multipart("/api/files/{id}/versions", v1Id)
+                        .file(pdf("portfolio-v2.pdf"))
+                        .with(authentication(auth(owner))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long v2Id = objectMapper.readTree(versionResponse).get("id").asLong();
+
+        mockMvc.perform(get("/api/applications/{applicationId}/resources", application.getId())
+                        .with(authentication(auth(owner))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.files.length()").value(1))
+                .andExpect(jsonPath("$.files[0].fileAssetId").value(v1Id))
+                .andExpect(jsonPath("$.files[0].lockedVersion").value(1));
+
+        mockMvc.perform(get("/api/files/{id}", v2Id).with(authentication(auth(owner))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.latest").value(true));
+    }
+
+    @Test
+    void blocksDeletingReferencedVersionOrRootWithChildVersions() throws Exception {
+        long v1Id = upload(owner, pdf("portfolio-v1.pdf"), "PORTFOLIO");
+        Application application = saveApplication(owner);
+        mockMvc.perform(post("/api/applications/{applicationId}/files", application.getId())
+                        .with(authentication(auth(owner)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fileAssetId": %d}
+                                """.formatted(v1Id)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/api/files/{id}", v1Id).with(authentication(auth(owner))))
+                .andExpect(status().isConflict());
+
+        long rootId = upload(owner, pdf("root-v1.pdf"), "PORTFOLIO");
+        mockMvc.perform(multipart("/api/files/{id}/versions", rootId)
+                        .file(pdf("root-v2.pdf"))
+                        .with(authentication(auth(owner))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/api/files/{id}", rootId).with(authentication(auth(owner))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"));
+    }
+
+    @Test
+    void hidesOtherUsersVersionOperations() throws Exception {
+        long v1Id = upload(owner, pdf("portfolio-v1.pdf"), "PORTFOLIO");
+
+        mockMvc.perform(get("/api/files/{id}/versions", v1Id).with(authentication(auth(otherUser))))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(multipart("/api/files/{id}/versions", v1Id)
+                        .file(pdf("portfolio-v2.pdf"))
+                        .with(authentication(auth(otherUser))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void blocksDeleteWhileCredentialReferencesFile() throws Exception {
         long fileId = upload(owner, pdf("자격증빙.pdf"), "CREDENTIAL_PROOF");
         long credentialId = createCredential(owner, fileId);
@@ -264,6 +379,25 @@ class FileControllerTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(response).get("id").asLong();
+    }
+
+    private Application saveApplication(User user) {
+        Company company = companyRepository.save(Company.create(user, "KB국민은행", null, null));
+        return applicationRepository.save(Application.create(
+                user,
+                company,
+                "IT 개발",
+                "2026 하반기",
+                2026,
+                RecruitmentSeason.SECOND_HALF,
+                null,
+                null,
+                null,
+                ApplicationStatus.WRITING,
+                null,
+                null,
+                null
+        ));
     }
 
     private String storageKeyOf(long fileId) {

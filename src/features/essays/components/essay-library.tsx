@@ -37,7 +37,7 @@ interface EssayLibraryProps {
 
 export function EssayLibrary({ items }: EssayLibraryProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/essays";
   const searchParams = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 

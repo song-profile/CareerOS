@@ -15,6 +15,7 @@ import {
   toCommonQuestionTypeDto,
   toEssayAnswerStatusDto,
 } from "@/features/essays/api/mapper";
+import { EMPTY_ESSAY_FILTERS } from "@/features/essays/library-utils";
 
 /** URL 파라미터 이름. 링크 공유 시 사람이 읽을 수 있도록 짧게 유지한다. */
 const PARAM = {
@@ -34,7 +35,11 @@ function keepKnown<TValue extends string>(values: string[], allowed: TValue[]): 
   return values.filter((value): value is TValue => allowed.some((item) => item === value));
 }
 
-export function parseEssayFilters(searchParams: ReadonlySearchParams): EssayLibraryFilters {
+export function parseEssayFilters(searchParams: ReadonlySearchParams | null): EssayLibraryFilters {
+  if (!searchParams) {
+    return EMPTY_ESSAY_FILTERS;
+  }
+
   const sort = ESSAY_SORT_OPTIONS.map((option) => option.value).find(
     (value) => value === searchParams.get(PARAM.sort),
   );

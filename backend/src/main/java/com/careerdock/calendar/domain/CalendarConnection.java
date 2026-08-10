@@ -68,6 +68,9 @@ public class CalendarConnection extends BaseTimeEntity {
     @Column(name = "last_sync_error", length = MAX_ERROR_LENGTH)
     private String lastSyncError;
 
+    @Column(name = "auto_sync_enabled", nullable = false)
+    private boolean autoSyncEnabled;
+
     protected CalendarConnection() {
     }
 
@@ -75,6 +78,7 @@ public class CalendarConnection extends BaseTimeEntity {
         this.user = user;
         this.connectedAt = Instant.now();
         this.status = SyncStatus.PENDING;
+        this.autoSyncEnabled = true;
     }
 
     public static CalendarConnection connect(
@@ -140,6 +144,10 @@ public class CalendarConnection extends BaseTimeEntity {
                 : reason.substring(0, MAX_ERROR_LENGTH);
     }
 
+    public void changeAutoSyncEnabled(boolean enabled) {
+        this.autoSyncEnabled = enabled;
+    }
+
     public Long getId() { return id; }
 
     public User getUser() { return user; }
@@ -161,4 +169,6 @@ public class CalendarConnection extends BaseTimeEntity {
     public Instant getLastSyncedAt() { return lastSyncedAt; }
 
     public String getLastSyncError() { return lastSyncError; }
+
+    public boolean isAutoSyncEnabled() { return autoSyncEnabled; }
 }

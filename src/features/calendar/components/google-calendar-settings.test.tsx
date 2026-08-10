@@ -6,6 +6,7 @@ import { GoogleCalendarSettings } from "@/features/calendar/components/google-ca
 import {
   connectGoogleCalendar,
   fetchGoogleCalendarStatus,
+  updateGoogleCalendarAutoSync,
 } from "@/features/calendar/api/calendar-api";
 
 vi.mock("@/features/calendar/api/calendar-api", () => ({
@@ -14,6 +15,7 @@ vi.mock("@/features/calendar/api/calendar-api", () => ({
   disconnectGoogleCalendar: vi.fn(),
   fetchGoogleCalendarStatus: vi.fn(),
   syncGoogleCalendar: vi.fn(),
+  updateGoogleCalendarAutoSync: vi.fn(),
 }));
 
 describe("GoogleCalendarSettings", () => {
@@ -21,12 +23,22 @@ describe("GoogleCalendarSettings", () => {
     vi.clearAllMocks();
     vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://localhost:8080");
     vi.mocked(fetchGoogleCalendarStatus).mockResolvedValue({
+      autoSyncEnabled: false,
       connected: false,
       connectedAt: null,
       eventCounts: {},
       lastSyncError: null,
       lastSyncedAt: null,
       status: "NOT_CONNECTED",
+    });
+    vi.mocked(updateGoogleCalendarAutoSync).mockResolvedValue({
+      autoSyncEnabled: true,
+      connected: true,
+      connectedAt: "2026-08-10T00:00:00Z",
+      eventCounts: { SYNCED: 1 },
+      lastSyncError: null,
+      lastSyncedAt: "2026-08-10T00:10:00Z",
+      status: "SYNCED",
     });
   });
 

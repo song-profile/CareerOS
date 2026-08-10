@@ -4,6 +4,7 @@ import {
   ApplicationDetailView,
 } from "@/features/applications/components/application-detail";
 import { fetchApplicationForCurrentUser } from "@/features/applications/api/server-application-api";
+import { getCalendarEvents } from "@/features/calendar/calendar-service";
 
 interface ApplicationDetailPageProps {
   params: Promise<{
@@ -13,7 +14,10 @@ interface ApplicationDetailPageProps {
 
 export default async function ApplicationDetailPage({ params }: ApplicationDetailPageProps) {
   const { id } = await params;
-  const applicationResult = await fetchApplicationForCurrentUser(id);
+  const [applicationResult, eventsResult] = await Promise.all([
+    fetchApplicationForCurrentUser(id),
+    getCalendarEvents({ applicationId: Number(id) }),
+  ]);
 
   if (!applicationResult.ok) {
     return (
@@ -33,7 +37,11 @@ export default async function ApplicationDetailPage({ params }: ApplicationDetai
         description="지원 준비 상태와 제출 자료를 한 화면에서 확인합니다."
         title="지원 상세"
       />
-      <ApplicationDetailView application={applicationResult.value} />
+      <ApplicationDetailView
+        application={applicationResult.value}
+        events={eventsResult.ok ? eventsResult.value : []}
+        eventsErrorMessage={eventsResult.ok ? undefined : eventsResult.message}
+      />
     </>
   );
 }

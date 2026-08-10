@@ -11,7 +11,13 @@ import {
 import {
   fetchFiles,
 } from "@/features/materials/api/file-api";
-import { createUserProfileFromAuthUser } from "@/features/materials/profile-utils";
+import {
+  fetchPersonalInfo,
+  updatePersonalInfo,
+} from "@/features/materials/api/profile-api";
+import {
+  toUserProfileViewModel,
+} from "@/features/materials/api/mapper";
 import {
   getApiClientErrorMessage,
   getHttpStatusFromError,
@@ -22,6 +28,7 @@ import type {
   ExternalLink,
   MaterialFile,
   UserProfile,
+  UserProfileFormValues,
 } from "@/features/materials/types";
 
 export type MaterialsResult<TValue> =
@@ -30,8 +37,24 @@ export type MaterialsResult<TValue> =
 
 export async function getUserProfile(): Promise<MaterialsResult<UserProfile>> {
   return wrapMaterialsRequest(
-    async () => createUserProfileFromAuthUser(await getCurrentUser()),
+    async () => {
+      const [authUser, personalInfo] = await Promise.all([
+        getCurrentUser(),
+        fetchPersonalInfo(),
+      ]);
+      return toUserProfileViewModel(authUser, personalInfo);
+    },
     "기본정보를 불러올 수 없습니다.",
+  );
+}
+
+export async function saveUserProfile(
+  authUser: { name: string; email: string },
+  values: UserProfileFormValues,
+): Promise<MaterialsResult<UserProfile>> {
+  return wrapMaterialsRequest(
+    async () => toUserProfileViewModel(authUser, await updatePersonalInfo(values)),
+    "기본정보를 저장할 수 없습니다.",
   );
 }
 

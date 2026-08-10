@@ -10,7 +10,7 @@ CareerDock은 취업 준비 과정에서 흩어지는 지원 현황, 자소서, 
 - 대시보드: `GET /api/dashboard/summary` 한 번으로 이번 주 마감, 작성 중 지원서, 다가오는 일정, 임박 마감 조회
 - 지원관리: 지원 건 목록, 상세, 등록, 수정, 상태 변경, 삭제
 - 자소서: 지원 건별 문항, 답변, 버전 생성, 제출본 잠금, 경험 태그
-- 내 자료: 자격증/어학, 외부 링크, 파일 업로드/다운로드, 자격번호 마스킹 및 전체 번호 조회
+- 내 자료: 기본정보 DB 저장, 자격증/어학, 외부 링크, 파일 업로드/다운로드, 자격번호 마스킹 및 전체 번호 조회
 - 캘린더: CareerDock 내부 일정 월간 조회, 다가오는 일정, 등록, 수정, 삭제, 지원 건 연결
 - Google Calendar 연동: 로그인과 분리된 추가 동의, 연결 상태 조회, 재동기화, 연결 해제, CareerDock 전용 캘린더 이벤트 생성/수정/삭제
 - Docker Compose: PostgreSQL, Spring Boot Backend, Next.js Frontend 통합 실행
@@ -147,6 +147,8 @@ http://localhost:8080/api/calendar/oauth/callback
 - Google Calendar 권한 동의 Callback URL: `http://localhost:8080/api/calendar/oauth/callback`
 - 인증 유지: Spring Session + HttpOnly `JSESSIONID`
 - 프론트 요청: `credentials: "include"`
+- 이메일/비밀번호 인증은 제공하지 않습니다.
+- Google 계정으로 최초 로그인하면 CareerDock 내부 User가 자동 생성됩니다.
 - 프론트는 Google token, authorization code, client secret을 저장하지 않습니다.
 
 ## Docker 실행

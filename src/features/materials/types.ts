@@ -23,12 +23,63 @@ export interface UserProfile {
   email: string;
   phone: string;
   address: string;
-  school: string;
+  schoolName: string;
   major: string;
   doubleMajor: string;
+  minor: string;
+  graduationStatus: GraduationStatus | "";
+  graduationDate: string;
   gpa: string;
-  militaryService: string;
+  gpaScale: string;
+  militaryStatus: MilitaryStatus | "";
+  militaryBranch: string;
+  militaryRank: string;
+  militaryDischargeDate: string;
   careerSummary: string;
+  updatedAt: Date | null;
+}
+
+export type GraduationStatus =
+  | "재학"
+  | "졸업"
+  | "졸업예정"
+  | "휴학"
+  | "수료"
+  | "기타";
+
+export type MilitaryStatus =
+  | "해당없음"
+  | "미필"
+  | "복무중"
+  | "군필"
+  | "면제"
+  | "기타";
+
+export interface UserProfileFormValues {
+  phone: string;
+  address: string;
+  schoolName: string;
+  major: string;
+  doubleMajor: string;
+  minor: string;
+  graduationStatus: GraduationStatus | "";
+  graduationDate: string;
+  gpa: string;
+  gpaScale: string;
+  militaryStatus: MilitaryStatus | "";
+  militaryBranch: string;
+  militaryRank: string;
+  militaryDischargeDate: string;
+  careerSummary: string;
+}
+
+export interface UserProfileFormErrors {
+  phone?: string;
+  schoolName?: string;
+  major?: string;
+  gpa?: string;
+  gpaScale?: string;
+  careerSummary?: string;
 }
 
 export interface Credential {
@@ -122,6 +173,10 @@ export interface MaterialFile {
   fileName: string;
   type: MaterialFileType;
   size: number;
+  version: number;
+  rootAssetId: string;
+  parentAssetId: string | null;
+  latest: boolean;
   createdAt: Date;
   isUsed: boolean;
   downloadUrl: string;

@@ -19,11 +19,17 @@ public record FileAssetResponse(
         long size,
         int version,
         Long parentAssetId,
+        Long rootAssetId,
+        boolean latest,
         String downloadUrl,
         Instant createdAt,
         Instant updatedAt
 ) {
     public static FileAssetResponse from(FileAsset asset) {
+        return from(asset, true);
+    }
+
+    public static FileAssetResponse from(FileAsset asset, boolean latest) {
         return new FileAssetResponse(
                 asset.getId(),
                 asset.getCategory(),
@@ -33,6 +39,8 @@ public record FileAssetResponse(
                 asset.getSize(),
                 asset.getVersion(),
                 asset.getParentAssetId(),
+                asset.getRootAssetId(),
+                latest,
                 "/api/files/" + asset.getId() + "/download",
                 asset.getCreatedAt(),
                 asset.getUpdatedAt()

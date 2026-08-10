@@ -8,14 +8,15 @@ import type {
   CredentialNumberDto,
   ExternalLinkDto,
   FileAssetDto,
+  PersonalInfoDto,
 } from "@/features/materials/api/dto";
 import {
   toCredentialDetailViewModel,
   toCredentialViewModel,
   toExternalLinkViewModel,
   toMaterialFileViewModel,
+  toUserProfileViewModel,
 } from "@/features/materials/api/mapper";
-import { createUserProfileFromAuthUser } from "@/features/materials/profile-utils";
 import type {
   Credential,
   CredentialDetail,
@@ -31,19 +32,26 @@ export type ServerMaterialsResult<TValue> =
 export async function getUserProfileForCurrentUser(): Promise<
   ServerMaterialsResult<UserProfile>
 > {
-  const result = await getCurrentUserFromSession();
+  const authResult = await getCurrentUserFromSession();
 
-  if (result.status === "authenticated") {
-    return { ok: true, value: createUserProfileFromAuthUser(result.user) };
+  if (authResult.status !== "authenticated") {
+    return {
+      ok: false,
+      message: authResult.status === "unauthenticated"
+        ? "로그인이 필요합니다."
+        : authResult.message,
+      status: authResult.status === "unauthenticated" ? 401 : undefined,
+    };
   }
 
-  return {
-    ok: false,
-    message: result.status === "unauthenticated"
-      ? "로그인이 필요합니다."
-      : result.message,
-    status: result.status === "unauthenticated" ? 401 : undefined,
-  };
+  const profileResult = await serverMaterialsRequest<PersonalInfoDto>(
+    apiEndpoints.profile.detail,
+    "기본정보를 불러올 수 없습니다.",
+  );
+
+  return profileResult.ok
+    ? { ok: true, value: toUserProfileViewModel(authResult.user, profileResult.value) }
+    : profileResult;
 }
 
 export async function getCredentialsForCurrentUser(): Promise<

@@ -181,6 +181,7 @@ class GoogleCalendarControllerTest {
         mockMvc.perform(get("/api/calendar/status").with(authentication(auth(owner))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.connected").value(true))
+                .andExpect(jsonPath("$.autoSyncEnabled").value(true))
                 .andExpect(jsonPath("$.status").value("SYNCED"))
                 .andExpect(jsonPath("$.eventCounts.SYNCED").value(1));
 
@@ -210,6 +211,23 @@ class GoogleCalendarControllerTest {
                 .andExpect(jsonPath("$.attempted").value(1))
                 .andExpect(jsonPath("$.synced").value(1))
                 .andExpect(jsonPath("$.failed").value(0));
+    }
+
+    @Test
+    void updatesAutoSyncSetting() throws Exception {
+        saveConnection(owner, "calendar-1");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/calendar/auto-sync")
+                        .with(authentication(auth(owner)))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"enabled":false}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.connected").value(true))
+                .andExpect(jsonPath("$.autoSyncEnabled").value(false));
+
+        assertThat(connectionRepository.findByUserId(owner.getId()).orElseThrow().isAutoSyncEnabled()).isFalse();
     }
 
     @Test

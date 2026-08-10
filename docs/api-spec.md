@@ -187,6 +187,11 @@ app:
 - 작성 중 지원서(`draftingApplicationCount`): `status = WRITING`인 지원 건 수. 마감일 유무와 무관하게 계산한다.
 - 다가오는 일정 수(`upcomingEventCount`): `startAt`이 현재 시각 초과, 현재 시각 + 14일 이하인 일정 수.
 - 다가오는 일정 목록(`upcomingEvents`): `startAt`이 현재 시각 초과인 일정 중 시작일시 오름차순 상위 5개.
+- 오늘 일정(`todayEvents`): 한국 날짜 기준 오늘 00:00 이상, 내일 00:00 미만 일정 중 시작일시 오름차순 상위 6개.
+- 이번 주 일정(`weekEvents`): 한국 날짜 기준 오늘부터 7일 범위 일정 중 시작일시 오름차순 상위 12개.
+- Google Calendar 상태(`googleCalendar`): 연결된 사용자에게만 의미가 있으며, 내부 `RecruitmentEvent.syncStatus`를 집계한다.
+- 지원 준비 상태(`preparationItems`): 종료 상태를 제외한 지원 건 중 마감이 가까운 상위 4개에 대해 실제 계산 가능한 자소서 문항/답변, 연결 자료, 연결 일정 수만 반환한다. 퍼센트는 반환하지 않는다.
+- 중요 알림(`importantNotifications`): 읽지 않은 중요 알림 중 최근 순 상위 4개. 대상 타입은 `APPLICATION_DEADLINE`, `INTERVIEW`, `CODING_TEST`, `CALENDAR_EVENT`, `SYSTEM`이다.
 - 모든 데이터는 세션의 `CareerdockOAuth2User` → `LoginUser.id()`에서 얻은 내부 사용자 ID 기준으로 필터링한다.
 
 Response JSON:
@@ -221,6 +226,52 @@ Response JSON:
       "allDay": false,
       "location": "온라인"
     }
+  ],
+  "todayEvents": [],
+  "weekEvents": [
+    {
+      "eventId": 10,
+      "applicationId": 1,
+      "companyName": "KB국민은행",
+      "positionName": "IT 개발",
+      "eventType": "CODING_TEST",
+      "title": "코딩테스트",
+      "startAt": "2026-08-12T01:00:00Z",
+      "endAt": "2026-08-12T03:00:00Z",
+      "allDay": false,
+      "location": "온라인"
+    }
+  ],
+  "googleCalendar": {
+    "connected": true,
+    "autoSyncEnabled": true,
+    "syncedCount": 12,
+    "pendingCount": 0,
+    "failedCount": 1
+  },
+  "preparationItems": [
+    {
+      "applicationId": 1,
+      "companyName": "KB국민은행",
+      "positionName": "IT 개발",
+      "status": "WRITING",
+      "deadlineAt": "2026-08-10T09:00:00Z",
+      "daysUntil": 2,
+      "essayQuestionCount": 4,
+      "essayAnswerCount": 3,
+      "materialCount": 4,
+      "eventCount": 2
+    }
+  ],
+  "importantNotifications": [
+    {
+      "notificationId": 100,
+      "type": "APPLICATION_DEADLINE",
+      "title": "지원 마감 D-1",
+      "message": "KB국민은행 마감이 임박했습니다.",
+      "linkUrl": "/applications/1",
+      "createdAt": "2026-08-09T09:00:00Z"
+    }
   ]
 }
 ```
@@ -248,6 +299,29 @@ Response JSON:
 | `upcomingEvents[].endAt` | string | No | 종료 시각. ISO-8601 `Instant` 문자열 |
 | `upcomingEvents[].allDay` | boolean | No | 종일 일정 여부 |
 | `upcomingEvents[].location` | string | Yes | 장소. 없으면 `null` |
+| `todayEvents[]` | `DashboardEventResponse[]` | No | 오늘 일정. 필드 구조는 `upcomingEvents[]`와 동일 |
+| `weekEvents[]` | `DashboardEventResponse[]` | No | 오늘부터 7일 범위 일정. 필드 구조는 `upcomingEvents[]`와 동일 |
+| `googleCalendar.connected` | boolean | No | Google Calendar 연결 여부 |
+| `googleCalendar.autoSyncEnabled` | boolean | No | 자동 동기화 사용 여부. 미연결이면 `false` |
+| `googleCalendar.syncedCount` | number | No | `SYNCED` 일정 수 |
+| `googleCalendar.pendingCount` | number | No | `PENDING` 일정 수 |
+| `googleCalendar.failedCount` | number | No | `FAILED` 일정 수 |
+| `preparationItems[].applicationId` | number | No | 지원 건 ID |
+| `preparationItems[].companyName` | string | No | 회사명 |
+| `preparationItems[].positionName` | string | No | 직무명 |
+| `preparationItems[].status` | `ApplicationStatus` | No | 지원 상태 |
+| `preparationItems[].deadlineAt` | string | Yes | 마감 시각. 없으면 `null` |
+| `preparationItems[].daysUntil` | number | Yes | 한국 날짜 기준 D-day. 마감이 없으면 `null` |
+| `preparationItems[].essayQuestionCount` | number | No | 자소서 문항 수 |
+| `preparationItems[].essayAnswerCount` | number | No | 답변이 하나 이상 있는 문항 수 |
+| `preparationItems[].materialCount` | number | No | 지원 건에 연결된 파일·자격·외부 링크 총 수 |
+| `preparationItems[].eventCount` | number | No | 지원 건에 연결된 일정 수 |
+| `importantNotifications[].notificationId` | number | No | 알림 ID |
+| `importantNotifications[].type` | `NotificationType` | No | 알림 타입 |
+| `importantNotifications[].title` | string | No | 알림 제목 |
+| `importantNotifications[].message` | string | No | 알림 내용 |
+| `importantNotifications[].linkUrl` | string | Yes | 클릭 이동 경로. 없으면 `null` |
+| `importantNotifications[].createdAt` | string | No | 생성 시각. ISO-8601 `Instant` 문자열 |
 
 Enum:
 
@@ -255,6 +329,11 @@ Enum:
 - `EventType`: `APPLICATION_DEADLINE`, `APTITUDE_TEST`, `NCS_TEST`, `TECHNICAL_TEST`, `CODING_TEST`, `AI_ASSESSMENT`, `ASSIGNMENT`, `FIRST_INTERVIEW`, `SECOND_INTERVIEW`, `FINAL_INTERVIEW`, `RESULT_ANNOUNCEMENT`, `PERSONAL_PREPARATION`
 
 ## Auth API
+
+CareerDock의 인증 정책은 Google 계정 단독 로그인이다. 이메일/비밀번호 회원가입·로그인 endpoint는 없다.
+Google 최초 로그인 시 `CareerdockOAuth2UserService`/사용자 자동 생성 로직이 내부 User를 생성하고,
+동일 Google subject로 재로그인하면 기존 User를 재사용한다. 프론트는 Google Access Token,
+Authorization Code, Client Secret을 저장하거나 처리하지 않는다.
 
 ### Google OAuth 시작
 
@@ -293,6 +372,100 @@ Enum:
 - 인증: 필요
 - 성공: `204 No Content` — 세션을 무효화하고 `JSESSIONID` 쿠키를 지운다.
 - 오류: `401 UNAUTHORIZED`
+
+## Profile API
+
+취업 지원서에 반복해서 사용하는 개인 기본정보를 관리한다. 인증용 `User`와 분리된 `PersonalInfo` 데이터이며,
+요청에 `userId`를 받지 않는다. 항상 현재 로그인한 Principal의 내부 사용자 ID 기준으로 조회·수정한다.
+
+### 필드
+
+| 필드 | 타입 | Nullable | 설명 |
+|---|---:|---:|---|
+| `phone` | string | Yes | 전화번호. 30자 이하, 숫자/공백/`+`/`-`/괄호 허용 |
+| `address` | string | Yes | 주소. 300자 이하 |
+| `schoolName` | string | Yes | 학교명. 150자 이하 |
+| `major` | string | Yes | 주전공. 150자 이하 |
+| `doubleMajor` | string | Yes | 복수전공. 150자 이하 |
+| `minor` | string | Yes | 부전공. 150자 이하 |
+| `graduationStatus` | `GraduationStatus` | Yes | 졸업 상태 |
+| `graduationDate` | string | Yes | 날짜만 필요한 값. `YYYY-MM-DD` (`LocalDate`) |
+| `gpa` | number | Yes | 학점. 0~5.0 |
+| `gpaScale` | number | Yes | 학점 만점. 0 초과~5.0. `gpa <= gpaScale` |
+| `militaryStatus` | `MilitaryStatus` | Yes | 병역 상태 |
+| `militaryBranch` | string | Yes | 군별. 50자 이하 |
+| `militaryRank` | string | Yes | 계급. 50자 이하 |
+| `militaryDischargeDate` | string | Yes | 전역일. `YYYY-MM-DD` (`LocalDate`) |
+| `careerSummary` | string | Yes | 경력요약. 1000자 이하 |
+| `updatedAt` | string | Yes | 마지막 수정 시각. ISO-8601 `Instant`. 저장 전이면 `null` |
+
+Enum:
+
+- `GraduationStatus`: `ENROLLED`, `GRADUATED`, `EXPECTED`, `LEAVE_OF_ABSENCE`, `COMPLETED`, `OTHER`
+- `MilitaryStatus`: `NOT_APPLICABLE`, `NOT_SERVED`, `SERVING`, `COMPLETED`, `EXEMPTED`, `OTHER`
+
+### 조회
+
+- `GET /api/profile`
+- 인증: 필요
+- Query Parameter: 없음
+- 성공: `200`
+- 저장된 기본정보가 아직 없어도 `404`가 아니라 모든 개인 필드가 `null`인 응답을 반환한다.
+- 오류: `401 UNAUTHORIZED`
+
+응답 예시:
+
+```json
+{
+  "phone": "010-1234-5678",
+  "address": "서울시 강남구",
+  "schoolName": "아주대학교",
+  "major": "소프트웨어학과",
+  "doubleMajor": "경영학",
+  "minor": null,
+  "graduationStatus": "EXPECTED",
+  "graduationDate": "2027-02-28",
+  "gpa": 4.12,
+  "gpaScale": 4.5,
+  "militaryStatus": "COMPLETED",
+  "militaryBranch": "육군",
+  "militaryRank": "병장",
+  "militaryDischargeDate": "2024-08-01",
+  "careerSummary": "백엔드 인턴 6개월",
+  "updatedAt": "2026-08-10T05:20:00Z"
+}
+```
+
+### 수정
+
+- `PATCH /api/profile`
+- 인증: 필요
+- Query Parameter: 없음
+- Request Body: 위 필드 중 `updatedAt` 제외. PATCH지만 전체 교체 방식이며 빈 문자열은 서버에서 `null`로 정규화한다.
+- 성공: `200`
+- 오류: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`
+
+요청 예시:
+
+```json
+{
+  "phone": "010-1234-5678",
+  "address": "서울시 강남구",
+  "schoolName": "아주대학교",
+  "major": "소프트웨어학과",
+  "doubleMajor": "경영학",
+  "minor": null,
+  "graduationStatus": "EXPECTED",
+  "graduationDate": "2027-02-28",
+  "gpa": 4.12,
+  "gpaScale": 4.5,
+  "militaryStatus": "COMPLETED",
+  "militaryBranch": "육군",
+  "militaryRank": "병장",
+  "militaryDischargeDate": "2024-08-01",
+  "careerSummary": "백엔드 인턴 6개월"
+}
+```
 
 ## OAuth Redirect
 
@@ -350,6 +523,13 @@ Company는 MVP에서 사용자별 데이터로 관리한다(전역 공유 아님
 - 오류: `400 VALIDATION_ERROR`
 - Validation: `companyName`/`positionName` 필수·150자 이하, `recruitmentYear` 2000~2100, `season` 필수, `companyHomepageUrl`/`postingUrl`/`applicationSiteUrl`은 URL 형식, `deadlineAt`은 `applicationStartAt`보다 이전일 수 없음, `memo` 500자 이하.
 - 동일 사용자의 동일 회사명이 이미 있으면 기존 Company를 재사용한다.
+- `deadlineAt`이 있으면 같은 트랜잭션에서 해당 지원 건에 연결된 내부 Calendar Event를 자동 생성한다.
+  - `eventType`: `APPLICATION_DEADLINE`
+  - `title`: `{회사명} {직무명} 지원 마감`
+  - `startAt`/`endAt`: `deadlineAt`
+  - `sourceType`: `APPLICATION`
+  - `autoGenerated`: `true`
+  - 이후 Google Calendar 연결이 있으면 내부 Calendar Event를 기준 데이터로 삼아 커밋 이후 비동기 동기화한다.
 
 요청:
 
@@ -403,6 +583,16 @@ Company는 MVP에서 사용자별 데이터로 관리한다(전역 공유 아님
 - `GET /api/applications/{id}`
 - 인증: 필요
 - 성공: `200`, 응답 형식은 위와 동일하고 `statusHistories`에 `{id, previousStatus, newStatus, changedAt}` 배열이 채워진다.
+
+### 수정과 마감 일정 동기화
+
+- `PATCH /api/applications/{id}`
+- 인증: 필요
+- 성공: `200`
+- `deadlineAt` 변경 시 기존 자동 `APPLICATION_DEADLINE` Event를 수정한다. 새 Event를 추가하지 않는다.
+- `deadlineAt` 삭제 시 기존 자동 `APPLICATION_DEADLINE` Event를 삭제한다.
+- 사용자가 Calendar에서 직접 만든 수동 일정(`autoGenerated=false`)은 deadline 변경/삭제의 영향을 받지 않는다.
+- 지원 건 삭제 시 현재 DB FK 정책상 연결된 RecruitmentEvent는 함께 삭제된다. 삭제 전 자동 생성 Event는 Google Calendar 삭제 요청을 커밋 이후 best-effort로 발행한다.
 - 오류: `404 NOT_FOUND`(없음 또는 타인 소유)
 
 ### 수정
@@ -731,6 +921,8 @@ S3 presigned URL은 쓰지 않는다. 업로드·다운로드 모두 백엔드�
   "size": 182734,
   "version": 1,
   "parentAssetId": null,
+  "rootAssetId": 1,
+  "latest": true,
   "downloadUrl": "/api/files/1/download",
   "createdAt": "2026-08-02T00:00:00Z",
   "updatedAt": "2026-08-02T00:00:00Z"
@@ -738,6 +930,36 @@ S3 presigned URL은 쓰지 않는다. 업로드·다운로드 모두 백엔드�
 ```
 
 저장 키(`storageKey`)는 응답에 없다. 파일 접근은 항상 `id`로만 한다.
+
+### 버전 모델
+
+파일 버전은 `FileAsset` self-parent 구조를 사용한다.
+
+- v1: `parentAssetId = null`, `rootAssetId = id`
+- v2 이상: `parentAssetId = rootAssetId`, `rootAssetId = v1 id`
+- `version`: 같은 논리 파일 안에서 1부터 증가
+- `latest`: 같은 논리 파일에서 가장 큰 version이면 `true`
+- 스토리지 본문은 버전마다 별도 `storageKey`로 저장한다.
+- DB unique index로 같은 논리 파일 안의 동일 version 중복을 막고, 서비스는 루트 파일 행을 lock한 뒤 `max(version)+1`을 계산한다.
+
+### 새 버전 업로드
+
+- `POST /api/files/{id}/versions` (`multipart/form-data`)
+- 인증: 필요
+- Path의 `{id}`는 해당 논리 파일의 어느 버전 id여도 된다.
+- Request Part: `file` 필수, `displayName` 선택. 카테고리는 기존 논리 파일의 카테고리를 유지한다.
+- 성공: `201`, 생성된 새 `FileAssetResponse`
+- 오류: `400 FILE_ERROR`, `404 NOT_FOUND`
+
+### 버전 기록
+
+- `GET /api/files/{id}/versions`
+- 인증: 필요
+- 성공: `200`, 같은 논리 파일의 모든 버전을 `version` 내림차순으로 반환
+- 오류: `404 NOT_FOUND`
+
+지원 건 자료 연결은 파일 그룹이 아니라 특정 `fileAssetId`를 참조한다. 따라서 `KB국민은행 -> 포트폴리오 v1`,
+`삼성전자 -> 포트폴리오 v2`처럼 서로 다른 지원 건이 서로 다른 버전을 유지할 수 있다.
 
 ### 목록·상세
 
@@ -756,7 +978,8 @@ S3 presigned URL은 쓰지 않는다. 업로드·다운로드 모두 백엔드�
 - `DELETE /api/files/{id}`
 - 인증: 필요
 - 성공: `204`
-- 오류: `404 NOT_FOUND`, **`409 CONFLICT`**(자격 증빙으로 연결됐거나 지원 건에 연결된 파일 — 두 경우 모두 연결을 먼저 해제해야 함)
+- 오류: `404 NOT_FOUND`, **`409 CONFLICT`**(자격 증빙으로 연결됐거나 지원 건에 연결된 파일, 또는 다른 버전이 이어진 루트 파일)
+- 지원 건에 연결된 버전은 과거 제출본 확인을 위해 hard delete하지 않는다. 연결 해제 후에만 삭제할 수 있다.
 
 ## Calendar API
 
@@ -839,6 +1062,8 @@ S3 presigned URL은 쓰지 않는다. 업로드·다운로드 모두 백엔드�
   "companyName": "KB국민은행",
   "positionName": "IT 개발",
   "eventType": "FIRST_INTERVIEW",
+  "sourceType": "MANUAL",
+  "autoGenerated": false,
   "title": "1차 면접",
   "startAt": "2026-09-10T01:00:00Z",
   "endAt": "2026-09-10T02:00:00Z",
@@ -856,6 +1081,16 @@ S3 presigned URL은 쓰지 않는다. 업로드·다운로드 모두 백엔드�
   "updatedAt": "2026-08-02T00:00:00Z"
 }
 ```
+
+`sourceType`:
+
+- `MANUAL`: Calendar 화면 또는 사용자가 직접 등록한 일정
+- `APPLICATION`: Application 도메인 흐름에서 생성된 일정
+
+`autoGenerated`:
+
+- `true`: 서버가 Application 변경에 맞춰 생성·갱신하는 일정. 현재는 지원 마감(`APPLICATION_DEADLINE`)에 사용한다.
+- `false`: 사용자가 직접 관리하는 일정. Application과 연결되어 있어도 마감일 자동 동기화 대상은 아니다.
 
 ### 상세·수정·삭제
 
@@ -1206,7 +1441,7 @@ Email:
 | 공통 | 날짜(`LocalDate`) 필드 | `string` | `2024-06-21` | 그대로 | 예 | 없음 | — |
 | 공통 | nullable 필드 | `T \| null` | `null` 포함, 키 생략 안 됨 | 그대로 | 아니오 | 없음 | — |
 
-추가로(비교표에 넣기엔 코드 품질 메모라 별도 기재): `src/features/materials/materials-service.ts`는 실제 화면에서 쓰이는데도 `mock-data.ts`만 읽고 위 API들을 전혀 호출하지 않는다. 주석은 실제 경로인 `GET /api/files`, `GET /api/external-links` 기준으로 갱신했다.
+현재 `src/features/materials/materials-service.ts`는 자격증, 외부 링크, 파일, 기본정보를 실제 API 모듈로 호출한다. 과거 Mock 전용 서비스였다는 메모는 더 이상 유효하지 않다.
 
 ---
 
@@ -1235,20 +1470,14 @@ Email:
 - `npm run typecheck` — **성공**
 - `npm run lint` — **성공**
 - `npm run build` — **성공**
-- `./gradlew test` — **실패**. Testcontainers PostgreSQL로 전체 스위트를 실행했고, 115개 중 3개 실패.
-- `./gradlew build` — **실패**. `test` 단계에서 같은 3개 실패.
+- `./gradlew test` — **성공**
+- `./gradlew build` — **성공**
 - 로컬 PostgreSQL(Docker Compose) + `bootRun` 수동 curl — **이번 작업에서는 실행하지 않음**
 - Google 실계정을 이용한 브라우저 OAuth 왕복 — **이번 작업에서는 실행하지 않음**
 
 ## 현재 실패 테스트
 
-| 테스트 클래스 | 테스트 | 실패 위치 |
-|---|---|---|
-| `GoogleCalendarControllerTest` | `syncRetriesFailedEvents()` | line 179 |
-| `GoogleCalendarControllerTest` | `disconnectRevokesTokenAndResetsEvents()` | line 193 |
-| `GoogleCalendarControllerTest` | `testEventCreatesThrowawayEventWithoutTouchingRecruitmentEvents()` | line 216 |
-
-위 3건은 현재 작업트리에 이미 포함된 Google Calendar 변경 영역의 테스트 실패다. 이번 계약 동기화 작업은 문서, 프론트 endpoint 상수, 프론트 Calendar DTO 타입만 수정했으며 백엔드 Calendar 로직은 변경하지 않았다.
+현재 전체 백엔드 테스트 기준으로 남아 있는 실패 테스트는 없다.
 
 ---
 
@@ -1281,13 +1510,13 @@ NEXT_PUBLIC_GOOGLE_OAUTH_START_PATH=/oauth2/authorization/google
 
 `NEXT_PUBLIC_API_BASE_URL`은 필수다 — 비어 있으면 프론트가 즉시 에러를 던진다. 백엔드 쪽은 `.env`에 `FRONTEND_URL=http://localhost:3000`, `ALLOWED_ORIGINS=http://localhost:3000`을 맞춰 둬야 CORS와 OAuth Redirect가 정상 동작한다.
 
-## 19단계: Google 로그인 연결 방법
+## Google 로그인 연결 방법
 
-1. 로그인 버튼 클릭 시 `window.location.href`를 `{NEXT_PUBLIC_API_BASE_URL}/oauth2/authorization/google`로 이동시킨다(현재 `oauth-api.ts`의 `getGoogleOAuthStartUrl()`이 이미 이 경로를 만든다 — 그대로 쓰면 됨).
+1. 로그인 버튼 클릭 시 `window.location.assign(...)`으로 `{NEXT_PUBLIC_API_BASE_URL}/oauth2/authorization/google`로 이동시킨다(현재 `oauth-api.ts`의 `getGoogleOAuthStartUrl()`이 이 경로를 만든다).
 2. Google 인증이 끝나면 백엔드가 `{FRONTEND_URL}/dashboard`(성공) 또는 `{FRONTEND_URL}/login?error=oauth_failed`(실패)로 브라우저를 리다이렉트한다. 프론트는 이 리다이렉트를 받는 페이지만 있으면 되고, Authorization Code나 토큰을 직접 처리할 필요가 없다.
 3. 로그인 여부 확인은 `GET /api/auth/me`를 `credentials: "include"`로 호출해 `200`이면 로그인, `401`이면 비로그인으로 판단한다(`server-auth.ts`가 이미 이렇게 구현돼 있음).
 4. 로그아웃은 `POST /api/auth/logout`.
-5. 이 저장소의 `login-form.tsx`/`signup-form.tsx`(이메일/비밀번호 폼)는 실제 백엔드에 대응하는 endpoint가 없다 — Google OAuth 버튼(`google-login-button.tsx`)이 유일한 실제 로그인 경로다.
+5. `/signup`은 별도 회원가입 폼을 제공하지 않고 `/login`으로 이동한다. Google 최초 로그인 시 내부 계정이 자동 생성된다.
 
 ## 20단계: 기능별 연동 순서 제안
 
@@ -1295,7 +1524,7 @@ NEXT_PUBLIC_GOOGLE_OAUTH_START_PATH=/oauth2/authorization/google
 
 1. **Auth** — 이미 연결 구조 있음(`server-auth.ts`). 세션 쿠키 왕복만 실제로 켜서 확인.
 2. **Application** — DTO/mapper 이미 완성. `ApplicationDetail.materials/checklist`, `essay.questionCount/answerCount`의 하드코딩 `[]`/`0`을 실제 API 응답으로 교체하는 작업이 이 단계의 핵심.
-3. **Credential / External Link / File** — DTO/mapper 이미 완성이지만 실제 화면(`materials-service.ts`)은 아직 mock만 읽는다. 이 서비스 레이어를 `credential-api.ts`/`external-link-api.ts`/`file-api.ts` 호출로 교체.
+3. **Credential / External Link / File** — 실제 화면은 `credential-api.ts`/`external-link-api.ts`/`file-api.ts`를 통해 백엔드와 연결되어 있다. 남은 개선은 파일 사용처 역조회나 자격 증빙 파일명 표시처럼 보조 정보 확장이다.
 4. **Essay** — DTO/mapper 있음. 화면 연결 시 `EssayAnswerResponse` + `EssayQuestionResponse`를 합치는 로직이 필요(주석에 이미 인지돼 있음).
 5. **Calendar** — DTO/mapper가 아예 없다. 이 문서의 Calendar API 섹션을 기준으로 `calendar/api/dto.ts` + `api/mapper.ts`를 새로 작성해야 한다. Enum 값은 이미 프론트 `types.ts`와 완전히 같으므로 crosswalk 없이 그대로 매핑 가능.
 6. **Application Resources** — 9단계 신규 API라 프론트에 아직 어떤 코드도 없다. `ApplicationMaterialsSection`의 placeholder를 이 API로 교체.

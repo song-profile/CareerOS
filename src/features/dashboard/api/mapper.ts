@@ -3,6 +3,8 @@ import type { ApplicationStatusDto } from "@/features/applications/api/dto";
 import type { DashboardSummaryDto } from "@/features/dashboard/api/dto";
 import type {
   DashboardData,
+  DashboardImportantNotification,
+  DashboardPreparationItem,
   DashboardUpcomingEvent,
   UpcomingDeadline,
 } from "@/features/dashboard/types";
@@ -23,6 +25,17 @@ export function toDashboardData(dto: DashboardSummaryDto): DashboardData {
     summary: dto.summary,
     upcomingDeadlines: dto.upcomingDeadlines.map(toUpcomingDeadline),
     upcomingEvents: dto.upcomingEvents.map(toDashboardUpcomingEvent),
+    todayEvents: (dto.todayEvents ?? []).map(toDashboardUpcomingEvent),
+    weekEvents: (dto.weekEvents ?? []).map(toDashboardUpcomingEvent),
+    googleCalendar: dto.googleCalendar ?? {
+      autoSyncEnabled: false,
+      connected: false,
+      failedCount: 0,
+      pendingCount: 0,
+      syncedCount: 0,
+    },
+    preparationItems: (dto.preparationItems ?? []).map(toPreparationItem),
+    importantNotifications: (dto.importantNotifications ?? []).map(toImportantNotification),
   };
 }
 
@@ -46,6 +59,7 @@ function toDashboardUpcomingEvent(
     id: String(dto.eventId),
     type: dto.eventType,
     typeLabel: CALENDAR_EVENT_TYPE_LABEL[dto.eventType],
+    title: dto.title,
     companyName: dto.companyName ?? "",
     roleName: dto.positionName ?? "",
     startsAt: new Date(dto.startAt),
@@ -54,5 +68,35 @@ function toDashboardUpcomingEvent(
     location: dto.location ?? "",
     applicationId: dto.applicationId === null ? null : String(dto.applicationId),
     detailHref: `/calendar/${dto.eventId}`,
+  };
+}
+
+function toPreparationItem(dto: NonNullable<DashboardSummaryDto["preparationItems"]>[number]): DashboardPreparationItem {
+  return {
+    applicationId: String(dto.applicationId),
+    companyName: dto.companyName,
+    roleName: dto.positionName,
+    status: dto.status,
+    statusLabel: APPLICATION_STATUS_LABEL[dto.status],
+    deadlineAt: dto.deadlineAt === null ? null : new Date(dto.deadlineAt),
+    daysUntil: dto.daysUntil,
+    essayQuestionCount: dto.essayQuestionCount,
+    essayAnswerCount: dto.essayAnswerCount,
+    materialCount: dto.materialCount,
+    eventCount: dto.eventCount,
+    detailHref: `/applications/${dto.applicationId}`,
+  };
+}
+
+function toImportantNotification(
+  dto: NonNullable<DashboardSummaryDto["importantNotifications"]>[number],
+): DashboardImportantNotification {
+  return {
+    id: String(dto.notificationId),
+    type: dto.type,
+    title: dto.title,
+    message: dto.message,
+    linkUrl: dto.linkUrl,
+    createdAt: new Date(dto.createdAt),
   };
 }

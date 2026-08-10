@@ -23,7 +23,7 @@ export function GoogleLoginButton() {
   return (
     <div className="grid gap-2">
       <Button
-        aria-label="Google로 계속하기"
+        aria-label="Google 계정으로 시작하기"
         className="w-full"
         disabled={disabled}
         leadingIcon={<GoogleLogo />}
@@ -32,7 +32,7 @@ export function GoogleLoginButton() {
         type="button"
         variant="secondary"
       >
-        Google로 계속하기
+        Google 계정으로 시작하기
       </Button>
       {!googleOAuthStartUrl ? (
         <p className="text-caption text-neutral-600">

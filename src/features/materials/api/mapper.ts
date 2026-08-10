@@ -8,6 +8,10 @@ import type {
   ExternalLinkType,
   MaterialFile,
   MaterialFileType,
+  UserProfile,
+  UserProfileFormValues,
+  GraduationStatus,
+  MilitaryStatus,
 } from "@/features/materials/types";
 import type {
   CredentialDto,
@@ -16,9 +20,14 @@ import type {
   ExternalLinkDto,
   ExternalLinkRequestDto,
   FileAssetDto,
+  GraduationStatusDto,
   FileCategoryDto,
   LinkTypeDto,
+  MilitaryStatusDto,
+  PersonalInfoDto,
+  PersonalInfoRequestDto,
 } from "@/features/materials/api/dto";
+import { createUserProfileFromAuthUser } from "@/features/materials/profile-utils";
 
 const CREDENTIAL_TYPE_TO_VIEW: Record<CredentialTypeDto, CredentialType> = {
   CERTIFICATION: "자격증",
@@ -79,6 +88,42 @@ const LINK_TYPE_TO_DTO: Record<ExternalLinkType, LinkTypeDto> = {
   기타: "OTHER",
 };
 
+const GRADUATION_STATUS_TO_VIEW: Record<GraduationStatusDto, GraduationStatus> = {
+  ENROLLED: "재학",
+  GRADUATED: "졸업",
+  EXPECTED: "졸업예정",
+  LEAVE_OF_ABSENCE: "휴학",
+  COMPLETED: "수료",
+  OTHER: "기타",
+};
+
+const GRADUATION_STATUS_TO_DTO: Record<GraduationStatus, GraduationStatusDto> = {
+  재학: "ENROLLED",
+  졸업: "GRADUATED",
+  졸업예정: "EXPECTED",
+  휴학: "LEAVE_OF_ABSENCE",
+  수료: "COMPLETED",
+  기타: "OTHER",
+};
+
+const MILITARY_STATUS_TO_VIEW: Record<MilitaryStatusDto, MilitaryStatus> = {
+  NOT_APPLICABLE: "해당없음",
+  NOT_SERVED: "미필",
+  SERVING: "복무중",
+  COMPLETED: "군필",
+  EXEMPTED: "면제",
+  OTHER: "기타",
+};
+
+const MILITARY_STATUS_TO_DTO: Record<MilitaryStatus, MilitaryStatusDto> = {
+  해당없음: "NOT_APPLICABLE",
+  미필: "NOT_SERVED",
+  복무중: "SERVING",
+  군필: "COMPLETED",
+  면제: "EXEMPTED",
+  기타: "OTHER",
+};
+
 export function toCredentialViewModel(dto: CredentialDto): Credential {
   return {
     id: String(dto.id),
@@ -100,6 +145,73 @@ export function toCredentialViewModel(dto: CredentialDto): Credential {
     referenceUrl: dto.referenceUrl ?? "",
     createdAt: toDate(dto.createdAt),
     updatedAt: toDate(dto.updatedAt),
+  };
+}
+
+export function toUserProfileViewModel(
+  authUser: { name: string; email: string },
+  dto: PersonalInfoDto,
+): UserProfile {
+  return createUserProfileFromAuthUser({
+    ...authUser,
+    phone: dto.phone ?? "",
+    address: dto.address ?? "",
+    schoolName: dto.schoolName ?? "",
+    major: dto.major ?? "",
+    doubleMajor: dto.doubleMajor ?? "",
+    minor: dto.minor ?? "",
+    graduationStatus: dto.graduationStatus ? GRADUATION_STATUS_TO_VIEW[dto.graduationStatus] : "",
+    graduationDate: dto.graduationDate ?? "",
+    gpa: dto.gpa === null ? "" : String(dto.gpa),
+    gpaScale: dto.gpaScale === null ? "" : String(dto.gpaScale),
+    militaryStatus: dto.militaryStatus ? MILITARY_STATUS_TO_VIEW[dto.militaryStatus] : "",
+    militaryBranch: dto.militaryBranch ?? "",
+    militaryRank: dto.militaryRank ?? "",
+    militaryDischargeDate: dto.militaryDischargeDate ?? "",
+    careerSummary: dto.careerSummary ?? "",
+    updatedAt: dto.updatedAt ? toDate(dto.updatedAt) : null,
+  });
+}
+
+export function toUserProfileFormValues(profile: UserProfile): UserProfileFormValues {
+  return {
+    phone: profile.phone,
+    address: profile.address,
+    schoolName: profile.schoolName,
+    major: profile.major,
+    doubleMajor: profile.doubleMajor,
+    minor: profile.minor,
+    graduationStatus: profile.graduationStatus,
+    graduationDate: profile.graduationDate,
+    gpa: profile.gpa,
+    gpaScale: profile.gpaScale,
+    militaryStatus: profile.militaryStatus,
+    militaryBranch: profile.militaryBranch,
+    militaryRank: profile.militaryRank,
+    militaryDischargeDate: profile.militaryDischargeDate,
+    careerSummary: profile.careerSummary,
+  };
+}
+
+export function toPersonalInfoRequestDto(values: UserProfileFormValues): PersonalInfoRequestDto {
+  return {
+    phone: emptyToNull(values.phone),
+    address: emptyToNull(values.address),
+    schoolName: emptyToNull(values.schoolName),
+    major: emptyToNull(values.major),
+    doubleMajor: emptyToNull(values.doubleMajor),
+    minor: emptyToNull(values.minor),
+    graduationStatus: values.graduationStatus
+      ? GRADUATION_STATUS_TO_DTO[values.graduationStatus]
+      : null,
+    graduationDate: emptyToNull(values.graduationDate),
+    gpa: numberOrNull(values.gpa),
+    gpaScale: numberOrNull(values.gpaScale),
+    militaryStatus: values.militaryStatus ? MILITARY_STATUS_TO_DTO[values.militaryStatus] : null,
+    militaryBranch: emptyToNull(values.militaryBranch),
+    militaryRank: emptyToNull(values.militaryRank),
+    militaryDischargeDate: emptyToNull(values.militaryDischargeDate),
+    careerSummary: emptyToNull(values.careerSummary),
   };
 }
 
@@ -139,6 +251,10 @@ export function toMaterialFileViewModel(dto: FileAssetDto): MaterialFile {
     fileName: dto.displayName,
     type: FILE_CATEGORY_TO_VIEW[dto.category],
     size: dto.size,
+    version: dto.version,
+    rootAssetId: String(dto.rootAssetId),
+    parentAssetId: dto.parentAssetId === null ? null : String(dto.parentAssetId),
+    latest: dto.latest,
     createdAt: toDate(dto.createdAt),
     isUsed: false,
     downloadUrl: dto.downloadUrl,
@@ -180,4 +296,12 @@ function toDate(value: string): Date {
 function emptyToNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function numberOrNull(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return Number(trimmed);
 }

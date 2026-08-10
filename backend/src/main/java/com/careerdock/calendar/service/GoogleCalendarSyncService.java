@@ -142,6 +142,7 @@ public class GoogleCalendarSyncService {
             );
             String calendarId = apiClient.findOrCreateCalendar(credential, existingCalendarId);
             CalendarConnection connection = upsertConnection(userId, tokenResponse, refreshToken, calendarId);
+            syncFutureEventsIfAutoEnabled(userId, connection);
 
             log.info("google calendar 연결 완료: userId={}, connectionId={}", userId, connection.getId());
             redirectWithResult(response, true, null);
@@ -204,6 +205,19 @@ public class GoogleCalendarSyncService {
         return "GOOGLE_TOKEN_EXCHANGE_FAILED";
     }
 
+    private void syncFutureEventsIfAutoEnabled(Long userId, CalendarConnection connection) {
+        if (!connection.isAutoSyncEnabled()) {
+            return;
+        }
+        List<RecruitmentEvent> targets = eventRepository.findByUserIdAndSyncStatusInAndStartAtGreaterThanEqual(
+                userId,
+                List.of(SyncStatus.NOT_CONNECTED, SyncStatus.FAILED),
+                Instant.now(),
+                PageRequest.of(0, MAX_RETRY_BATCH)
+        );
+        targets.forEach(event -> pushUpsert(event, true));
+    }
+
     @Transactional(readOnly = true)
     public CalendarStatusResponse status(Long userId) {
         Map<SyncStatus, Long> counts = eventRepository.findSyncStatusesByUserId(userId).stream()
@@ -211,6 +225,7 @@ public class GoogleCalendarSyncService {
         return connectionRepository.findByUserId(userId)
                 .map(connection -> new CalendarStatusResponse(
                         true,
+                        connection.isAutoSyncEnabled(),
                         connection.getStatus(),
                         connection.getConnectedAt(),
                         connection.getLastSyncedAt(),
@@ -231,12 +246,20 @@ public class GoogleCalendarSyncService {
 
         int synced = 0;
         for (RecruitmentEvent event : targets) {
-            pushUpsert(event);
+            pushUpsert(event, true);
             if (event.getSyncStatus() == SyncStatus.SYNCED) {
                 synced++;
             }
         }
         return new CalendarSyncResponse(targets.size(), synced, targets.size() - synced);
+    }
+
+    @Transactional
+    public CalendarStatusResponse updateAutoSync(Long userId, boolean enabled) {
+        CalendarConnection connection = connectionRepository.findByUserId(userId)
+                .orElseThrow(() -> new CareerdockException(ErrorCode.GOOGLE_NOT_CONNECTED, ErrorCode.GOOGLE_NOT_CONNECTED.message()));
+        connection.changeAutoSyncEnabled(enabled);
+        return status(userId);
     }
 
     @Transactional
@@ -280,14 +303,14 @@ public class GoogleCalendarSyncService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onUpsertRequested(RecruitmentEventUpsertRequested requested) {
-        eventRepository.findById(requested.eventId()).ifPresent(this::pushUpsert);
+        eventRepository.findById(requested.eventId()).ifPresent(event -> pushUpsert(event, false));
     }
 
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onDeleteRequested(RecruitmentEventDeleteRequested requested) {
-        pushDelete(requested.eventId(), requested.userId(), requested.googleEventId());
+        pushDelete(requested.eventId(), requested.userId(), requested.googleEventId(), false);
     }
 
     /**
@@ -297,8 +320,15 @@ public class GoogleCalendarSyncService {
      */
     @Transactional
     public void pushUpsert(RecruitmentEvent event) {
+        pushUpsert(event, false);
+    }
+
+    private void pushUpsert(RecruitmentEvent event, boolean force) {
         CalendarConnection connection = connectionRepository.findByUserId(event.getUser().getId()).orElse(null);
         if (connection == null) {
+            return;
+        }
+        if (!force && !connection.isAutoSyncEnabled()) {
             return;
         }
         try {
@@ -319,7 +349,7 @@ public class GoogleCalendarSyncService {
 
     /** 로컬 행이 아직 있을 때(삭제 직전) 필요한 값만 뽑아 {@link #pushDelete(Long, Long, String)}에 위임한다. */
     public void pushDelete(RecruitmentEvent event) {
-        pushDelete(event.getId(), event.getUser().getId(), event.getGoogleEventId());
+        pushDelete(event.getId(), event.getUser().getId(), event.getGoogleEventId(), false);
     }
 
     /**
@@ -330,11 +360,18 @@ public class GoogleCalendarSyncService {
      */
     @Transactional
     public void pushDelete(Long eventId, Long userId, String googleEventId) {
+        pushDelete(eventId, userId, googleEventId, false);
+    }
+
+    private void pushDelete(Long eventId, Long userId, String googleEventId, boolean force) {
         if (googleEventId == null) {
             return;
         }
         CalendarConnection connection = connectionRepository.findByUserId(userId).orElse(null);
         if (connection == null || connection.getGoogleCalendarId() == null) {
+            return;
+        }
+        if (!force && !connection.isAutoSyncEnabled()) {
             return;
         }
         try {

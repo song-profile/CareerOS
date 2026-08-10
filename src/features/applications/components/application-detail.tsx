@@ -7,9 +7,11 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { cn } from "@/lib/utils/cn";
 import { ApplicationDDayChip } from "@/features/applications/components/application-d-day-chip";
 import { ApplicationDeleteDialog } from "@/features/applications/components/application-delete-dialog";
+import { ApplicationRecruitmentTimeline } from "@/features/applications/components/application-recruitment-timeline";
 import { ApplicationStatusUpdateForm } from "@/features/applications/components/application-status-update-form";
 import { ApplicationStatusBadge } from "@/features/applications/components/application-status-badge";
 import { formatDeadline } from "@/features/applications/date-utils";
+import type { CalendarEvent } from "@/features/calendar/types";
 import type {
   ApplicationChecklistItem,
   ApplicationDetail,
@@ -19,6 +21,11 @@ import type { ApplicationStatus } from "@/features/applications/types";
 
 interface ApplicationDetailProps {
   application: ApplicationDetail;
+}
+
+interface ApplicationDetailViewProps extends ApplicationDetailProps {
+  events: CalendarEvent[];
+  eventsErrorMessage?: string;
 }
 
 const timelineSteps: ApplicationTimelineStep[] = [
@@ -63,7 +70,11 @@ function formatDateTime(date: Date): string {
   }).format(date);
 }
 
-export function ApplicationDetailView({ application }: ApplicationDetailProps) {
+export function ApplicationDetailView({
+  application,
+  events,
+  eventsErrorMessage,
+}: ApplicationDetailViewProps) {
   return (
     <div className="grid gap-8">
       <ApplicationDetailHero application={application} />
@@ -76,6 +87,11 @@ export function ApplicationDetailView({ application }: ApplicationDetailProps) {
             currentStatus={application.status}
           />
           <ApplicationTimelineSection status={application.status} />
+          <ApplicationRecruitmentEventsSection
+            application={application}
+            errorMessage={eventsErrorMessage}
+            events={events}
+          />
           <ApplicationMaterialsSection application={application} />
           <ApplicationEssaySection application={application} />
         </div>
@@ -86,6 +102,26 @@ export function ApplicationDetailView({ application }: ApplicationDetailProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+function ApplicationRecruitmentEventsSection({
+  application,
+  errorMessage,
+  events,
+}: {
+  application: ApplicationDetail;
+  errorMessage?: string;
+  events: CalendarEvent[];
+}) {
+  return (
+    <DetailSection description="지원 건과 연결된 마감, 테스트, 면접, 발표 일정을 확인합니다." title="진행 타임라인">
+      <ApplicationRecruitmentTimeline
+        applicationId={application.id}
+        errorMessage={errorMessage}
+        events={events}
+      />
+    </DetailSection>
   );
 }
 

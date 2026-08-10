@@ -10,6 +10,9 @@ export const apiEndpoints = {
   dashboard: {
     summary: "/api/dashboard/summary",
   },
+  profile: {
+    detail: "/api/profile",
+  },
   notifications: {
     list: "/api/notifications",
     unreadCount: "/api/notifications/unread-count",
@@ -42,6 +45,7 @@ export const apiEndpoints = {
     connect: "/api/calendar/connect",
     oauthCallback: "/api/calendar/oauth/callback",
     status: "/api/calendar/status",
+    autoSync: "/api/calendar/auto-sync",
     sync: "/api/calendar/sync",
     disconnect: "/api/calendar/disconnect",
     testEvent: "/api/calendar/test-event",
@@ -66,6 +70,7 @@ export const apiEndpoints = {
   files: {
     list: "/api/files",
     detail: (id: string | number) => `/api/files/${id}`,
+    versions: (id: string | number) => `/api/files/${id}/versions`,
     download: (id: string | number) => `/api/files/${id}/download`,
   },
   externalLinks: {

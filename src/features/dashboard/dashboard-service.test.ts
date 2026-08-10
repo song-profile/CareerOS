@@ -36,6 +36,17 @@ describe("getDashboardSummary", () => {
         },
         upcomingDeadlines: [],
         upcomingEvents: [],
+        todayEvents: [],
+        weekEvents: [],
+        googleCalendar: {
+          autoSyncEnabled: false,
+          connected: false,
+          failedCount: 0,
+          pendingCount: 0,
+          syncedCount: 0,
+        },
+        preparationItems: [],
+        importantNotifications: [],
       },
     });
   });

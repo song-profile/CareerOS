@@ -19,7 +19,7 @@ describe("GoogleLoginButton", () => {
 
     render(<GoogleLoginButton />);
 
-    const button = screen.getByRole("button", { name: "Google로 계속하기" });
+    const button = screen.getByRole("button", { name: "Google 계정으로 시작하기" });
     await waitFor(() => expect(button).toBeDisabled());
     expect(screen.getByText("백엔드 Google OAuth 시작 URL이 확인되면 활성화됩니다.")).toBeInTheDocument();
   });
@@ -32,7 +32,7 @@ describe("GoogleLoginButton", () => {
 
     render(<GoogleLoginButton />);
 
-    const button = await screen.findByRole("button", { name: "Google로 계속하기" });
+    const button = await screen.findByRole("button", { name: "Google 계정으로 시작하기" });
     await user.click(button);
 
     expect(assign).toHaveBeenCalledWith("http://localhost:8080/oauth2/authorization/google");

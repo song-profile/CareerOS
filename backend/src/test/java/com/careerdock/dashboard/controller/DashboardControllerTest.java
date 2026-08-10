@@ -9,13 +9,24 @@ import com.careerdock.application.domain.Application;
 import com.careerdock.application.domain.ApplicationStatus;
 import com.careerdock.application.domain.RecruitmentSeason;
 import com.careerdock.application.repository.ApplicationRepository;
+import com.careerdock.calendar.domain.CalendarConnection;
 import com.careerdock.calendar.domain.EventType;
 import com.careerdock.calendar.domain.RecruitmentEvent;
+import com.careerdock.calendar.domain.SyncStatus;
+import com.careerdock.calendar.repository.CalendarConnectionRepository;
 import com.careerdock.calendar.repository.RecruitmentEventRepository;
 import com.careerdock.company.domain.Company;
 import com.careerdock.company.repository.CompanyRepository;
+import com.careerdock.essay.domain.CommonQuestionType;
+import com.careerdock.essay.domain.EssayAnswer;
+import com.careerdock.essay.domain.EssayQuestion;
+import com.careerdock.essay.repository.EssayAnswerRepository;
+import com.careerdock.essay.repository.EssayQuestionRepository;
 import com.careerdock.global.auth.CareerdockOAuth2User;
 import com.careerdock.global.auth.LoginUser;
+import com.careerdock.notification.domain.Notification;
+import com.careerdock.notification.domain.NotificationType;
+import com.careerdock.notification.repository.NotificationRepository;
 import com.careerdock.user.domain.AuthProvider;
 import com.careerdock.user.domain.User;
 import com.careerdock.user.repository.UserRepository;
@@ -44,6 +55,10 @@ class DashboardControllerTest {
     @Autowired private CompanyRepository companyRepository;
     @Autowired private ApplicationRepository applicationRepository;
     @Autowired private RecruitmentEventRepository eventRepository;
+    @Autowired private CalendarConnectionRepository connectionRepository;
+    @Autowired private EssayQuestionRepository essayQuestionRepository;
+    @Autowired private EssayAnswerRepository essayAnswerRepository;
+    @Autowired private NotificationRepository notificationRepository;
 
     private User owner;
     private User otherUser;
@@ -73,7 +88,12 @@ class DashboardControllerTest {
                 .andExpect(jsonPath("$.summary.upcomingEventCount").value(0))
                 .andExpect(jsonPath("$.summary.draftingApplicationCount").value(0))
                 .andExpect(jsonPath("$.upcomingDeadlines.length()").value(0))
-                .andExpect(jsonPath("$.upcomingEvents.length()").value(0));
+                .andExpect(jsonPath("$.upcomingEvents.length()").value(0))
+                .andExpect(jsonPath("$.todayEvents.length()").value(0))
+                .andExpect(jsonPath("$.weekEvents.length()").value(0))
+                .andExpect(jsonPath("$.googleCalendar.connected").value(false))
+                .andExpect(jsonPath("$.preparationItems.length()").value(0))
+                .andExpect(jsonPath("$.importantNotifications.length()").value(0));
     }
 
     @Test
@@ -95,7 +115,83 @@ class DashboardControllerTest {
                 .andExpect(jsonPath("$.summary.draftingApplicationCount").value(1))
                 .andExpect(jsonPath("$.upcomingDeadlines.length()").value(1))
                 .andExpect(jsonPath("$.upcomingDeadlines[0].companyName").value("KB국민은행"))
-                .andExpect(jsonPath("$.upcomingEvents.length()").value(0));
+                .andExpect(jsonPath("$.upcomingEvents.length()").value(0))
+                .andExpect(jsonPath("$.todayEvents.length()").value(0))
+                .andExpect(jsonPath("$.weekEvents.length()").value(0))
+                .andExpect(jsonPath("$.importantNotifications.length()").value(0));
+    }
+
+    @Test
+    void returnsTodayAndWeekEventsWithGoogleSyncStatus() throws Exception {
+        Application application = saveApplication(owner, "삼성전자", "플랫폼 개발", now.plusSeconds(days(1)), ApplicationStatus.WRITING);
+        RecruitmentEvent synced = saveEvent(owner, application, "오늘 코딩테스트", now.plusSeconds(3600));
+        synced.markSynced("google-event-1");
+        eventRepository.save(synced);
+        RecruitmentEvent failed = saveEvent(owner, application, "내일 면접", now.plusSeconds(days(1)));
+        failed.markSyncFailed("GOOGLE_API_ERROR");
+        eventRepository.save(failed);
+        saveEvent(owner, application, "8일 뒤 일정", now.plusSeconds(days(8)));
+        CalendarConnection connection = CalendarConnection.connect(
+                owner,
+                "owner@example.com",
+                "encrypted-refresh-token",
+                "encrypted-access-token",
+                now.plusSeconds(3600)
+        );
+        connection.markSynced();
+        connectionRepository.save(connection);
+
+        mockMvc.perform(get("/api/dashboard/summary").with(authentication(auth(owner))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.todayEvents.length()").value(1))
+                .andExpect(jsonPath("$.todayEvents[0].title").value("오늘 코딩테스트"))
+                .andExpect(jsonPath("$.weekEvents.length()").value(2))
+                .andExpect(jsonPath("$.googleCalendar.connected").value(true))
+                .andExpect(jsonPath("$.googleCalendar.autoSyncEnabled").value(true))
+                .andExpect(jsonPath("$.googleCalendar.syncedCount").value(1))
+                .andExpect(jsonPath("$.googleCalendar.failedCount").value(1));
+    }
+
+    @Test
+    void returnsPreparationItemsAndImportantNotifications() throws Exception {
+        Application application = saveApplication(owner, "KB국민은행", "IT 개발", now.plusSeconds(days(1)), ApplicationStatus.WRITING);
+        EssayQuestion firstQuestion = essayQuestionRepository.save(EssayQuestion.create(
+                application,
+                1,
+                "지원동기",
+                700,
+                CommonQuestionType.MOTIVATION
+        ));
+        essayQuestionRepository.save(EssayQuestion.create(
+                application,
+                2,
+                "협업 경험",
+                700,
+                CommonQuestionType.COLLABORATION
+        ));
+        essayAnswerRepository.save(EssayAnswer.draft(firstQuestion, owner, "답변", 1));
+        saveEvent(owner, application, "지원 마감", now.plusSeconds(days(1)));
+        notificationRepository.save(Notification.create(
+                owner,
+                NotificationType.APPLICATION_DEADLINE,
+                "지원 마감 D-1",
+                "KB국민은행 마감이 임박했습니다.",
+                "/applications/" + application.getId(),
+                "APPLICATION",
+                application.getId(),
+                "dashboard-test-" + application.getId()
+        ));
+
+        mockMvc.perform(get("/api/dashboard/summary").with(authentication(auth(owner))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.preparationItems.length()").value(1))
+                .andExpect(jsonPath("$.preparationItems[0].companyName").value("KB국민은행"))
+                .andExpect(jsonPath("$.preparationItems[0].essayQuestionCount").value(2))
+                .andExpect(jsonPath("$.preparationItems[0].essayAnswerCount").value(1))
+                .andExpect(jsonPath("$.preparationItems[0].materialCount").value(0))
+                .andExpect(jsonPath("$.preparationItems[0].eventCount").value(1))
+                .andExpect(jsonPath("$.importantNotifications.length()").value(1))
+                .andExpect(jsonPath("$.importantNotifications[0].title").value("지원 마감 D-1"));
     }
 
     @Test

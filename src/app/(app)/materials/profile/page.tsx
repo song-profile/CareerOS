@@ -4,7 +4,7 @@ import { getUserProfileForCurrentUser } from "@/features/materials/api/server-ma
 import {
   MaterialsErrorState,
 } from "@/features/materials/components/materials-states";
-import { ProfileSummaryCard } from "@/features/materials/components/profile-summary-card";
+import { ProfileForm } from "@/features/materials/components/profile-form";
 
 export default async function ProfilePage() {
   const result = await getUserProfileForCurrentUser();
@@ -22,7 +22,7 @@ export default async function ProfilePage() {
       />
       <div className="max-w-3xl">
         {result.ok ? (
-          <ProfileSummaryCard profile={result.value} />
+          <ProfileForm profile={result.value} />
         ) : (
           <MaterialsErrorState title="기본정보를 불러올 수 없습니다." />
         )}

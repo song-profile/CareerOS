@@ -1,6 +1,7 @@
 package com.careerdock.notification.repository;
 
 import com.careerdock.notification.domain.Notification;
+import com.careerdock.notification.domain.NotificationType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +26,20 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     List<Notification> findByUser(Long userId, boolean unreadOnly, Pageable pageable);
 
     long countByUserIdAndReadAtIsNull(Long userId);
+
+    @Query("""
+            select n
+            from Notification n
+            where n.user.id = :userId
+              and n.readAt is null
+              and n.type in :types
+            order by n.createdAt desc, n.id desc
+            """)
+    List<Notification> findDashboardImportantNotifications(
+            Long userId,
+            List<NotificationType> types,
+            Pageable pageable
+    );
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

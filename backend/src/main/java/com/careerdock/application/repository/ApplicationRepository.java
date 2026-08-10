@@ -52,6 +52,23 @@ public interface ApplicationRepository extends JpaRepository<Application, Long>,
     @Query("""
             select a
             from Application a
+            where a.user.id = :userId
+              and a.status not in :excludedStatuses
+            order by
+              case when a.deadlineAt is null then 1 else 0 end,
+              a.deadlineAt asc,
+              a.id asc
+            """)
+    List<Application> findDashboardPreparationApplications(
+            Long userId,
+            List<ApplicationStatus> excludedStatuses,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = "company")
+    @Query("""
+            select a
+            from Application a
             where a.deadlineAt >= :from
               and a.deadlineAt < :to
               and a.status not in :excludedStatuses

@@ -9,15 +9,24 @@ import {
 } from "@/features/calendar/calendar-service";
 import { getCalendarGridRange } from "@/features/calendar/date-utils";
 
-export default async function CalendarPage() {
+interface CalendarPageProps {
+  searchParams: Promise<{
+    applicationId?: string;
+  }>;
+}
+
+export default async function CalendarPage({ searchParams }: CalendarPageProps) {
+  const params = await searchParams;
+  const applicationId = toOptionalNumber(params.applicationId);
   const initialMonth = new Date();
   const initialRange = getCalendarGridRange(initialMonth);
   const [eventsResult, upcomingResult] = await Promise.all([
     getCalendarEvents({
       start: initialRange.start.toISOString(),
       end: initialRange.end.toISOString(),
+      applicationId,
     }),
-    getUpcomingCalendarEvents(8),
+    applicationId ? getCalendarEvents({ upcoming: true, limit: 8, applicationId }) : getUpcomingCalendarEvents(8),
   ]);
 
   return (
@@ -39,6 +48,7 @@ export default async function CalendarPage() {
         <Suspense fallback={<CalendarSkeleton />}>
           <LazyCalendarBoard
             events={eventsResult.value}
+            applicationId={params.applicationId}
             initialMonth={initialMonth.toISOString()}
             upcomingEvents={upcomingResult.ok ? upcomingResult.value : []}
           />
@@ -48,4 +58,13 @@ export default async function CalendarPage() {
       )}
     </>
   );
+}
+
+function toOptionalNumber(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }

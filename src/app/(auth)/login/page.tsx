@@ -25,7 +25,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const loggedOut = getSingleParam(params?.loggedOut);
 
   return (
-    <AuthLayout description="저장한 지원 자료와 일정을 다시 확인하려면 로그인하세요." title="로그인">
+    <AuthLayout
+      description="Google 계정으로 로그인하면 지원 자료와 일정이 CareerDock 계정에 연결됩니다."
+      title="Google 계정으로 시작하기"
+    >
       <LoginForm
         initialMessage={loggedOut ? "로그아웃되었습니다." : undefined}
         initialServerError={error ? loginMessages[error] ?? "로그인이 필요합니다." : undefined}

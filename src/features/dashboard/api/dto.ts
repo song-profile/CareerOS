@@ -1,5 +1,6 @@
 import type { CalendarEventType } from "@/features/calendar/types";
 import type { ApplicationStatusDto } from "@/features/applications/api/dto";
+import type { NotificationType } from "@/features/notifications/types";
 
 export interface DashboardCountsDto {
   weeklyDeadlineCount: number;
@@ -29,8 +30,43 @@ export interface DashboardEventDto {
   location: string | null;
 }
 
+export interface DashboardGoogleCalendarDto {
+  connected: boolean;
+  autoSyncEnabled: boolean;
+  syncedCount: number;
+  pendingCount: number;
+  failedCount: number;
+}
+
+export interface DashboardPreparationDto {
+  applicationId: number;
+  companyName: string;
+  positionName: string;
+  status: ApplicationStatusDto;
+  deadlineAt: string | null;
+  daysUntil: number | null;
+  essayQuestionCount: number;
+  essayAnswerCount: number;
+  materialCount: number;
+  eventCount: number;
+}
+
+export interface DashboardNotificationDto {
+  notificationId: number;
+  type: NotificationType;
+  title: string;
+  message: string;
+  linkUrl: string | null;
+  createdAt: string;
+}
+
 export interface DashboardSummaryDto {
   summary: DashboardCountsDto;
   upcomingDeadlines: DashboardDeadlineDto[];
   upcomingEvents: DashboardEventDto[];
+  todayEvents?: DashboardEventDto[];
+  weekEvents?: DashboardEventDto[];
+  googleCalendar?: DashboardGoogleCalendarDto;
+  preparationItems?: DashboardPreparationDto[];
+  importantNotifications?: DashboardNotificationDto[];
 }

@@ -50,6 +50,59 @@ export interface CredentialNumberDto {
   credentialNumber: string;
 }
 
+export type GraduationStatusDto =
+  | "ENROLLED"
+  | "GRADUATED"
+  | "EXPECTED"
+  | "LEAVE_OF_ABSENCE"
+  | "COMPLETED"
+  | "OTHER";
+
+export type MilitaryStatusDto =
+  | "NOT_APPLICABLE"
+  | "NOT_SERVED"
+  | "SERVING"
+  | "COMPLETED"
+  | "EXEMPTED"
+  | "OTHER";
+
+export interface PersonalInfoDto {
+  phone: string | null;
+  address: string | null;
+  schoolName: string | null;
+  major: string | null;
+  doubleMajor: string | null;
+  minor: string | null;
+  graduationStatus: GraduationStatusDto | null;
+  graduationDate: string | null;
+  gpa: number | null;
+  gpaScale: number | null;
+  militaryStatus: MilitaryStatusDto | null;
+  militaryBranch: string | null;
+  militaryRank: string | null;
+  militaryDischargeDate: string | null;
+  careerSummary: string | null;
+  updatedAt: string | null;
+}
+
+export interface PersonalInfoRequestDto {
+  phone: string | null;
+  address: string | null;
+  schoolName: string | null;
+  major: string | null;
+  doubleMajor: string | null;
+  minor: string | null;
+  graduationStatus: GraduationStatusDto | null;
+  graduationDate: string | null;
+  gpa: number | null;
+  gpaScale: number | null;
+  militaryStatus: MilitaryStatusDto | null;
+  militaryBranch: string | null;
+  militaryRank: string | null;
+  militaryDischargeDate: string | null;
+  careerSummary: string | null;
+}
+
 export type FileCategoryDto =
   | "PROFILE_PHOTO"
   | "TRANSCRIPT"
@@ -68,6 +121,8 @@ export interface FileAssetDto {
   size: number;
   version: number;
   parentAssetId: number | null;
+  rootAssetId: number;
+  latest: boolean;
   downloadUrl: string;
   createdAt: string;
   updatedAt: string;

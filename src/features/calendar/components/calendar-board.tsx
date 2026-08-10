@@ -26,11 +26,13 @@ import type { CalendarEvent } from "@/features/calendar/types";
 
 export interface CalendarBoardProps {
   events: CalendarEvent[];
+  applicationId?: string;
   initialMonth: string;
   upcomingEvents: CalendarEvent[];
 }
 
 export function CalendarBoard({
+  applicationId,
   events: initialEvents,
   initialMonth,
   upcomingEvents,
@@ -66,6 +68,7 @@ export function CalendarBoard({
       const nextEvents = await fetchCalendarEvents({
         start: range.start.toISOString(),
         end: range.end.toISOString(),
+        applicationId: applicationId ? Number(applicationId) : undefined,
       });
       setEvents(nextEvents);
     } catch {
@@ -91,7 +94,7 @@ export function CalendarBoard({
   if (events.length === 0) {
     return (
       <CalendarEmptyState
-        actionHref="/calendar/new"
+        actionHref={applicationId ? `/calendar/new?applicationId=${applicationId}` : "/calendar/new"}
         description="지원 마감이나 면접 일정을 등록해보세요."
         title="아직 등록된 일정이 없습니다."
       />
@@ -130,7 +133,8 @@ export function CalendarBoard({
                   events={getEventsForDate(events, day.date)}
                   key={day.key}
                   selected={day.key === selectedDateKey}
-                  onSelect={() => setSelectedDateKey(day.key)}
+              applicationId={applicationId}
+              onSelect={() => setSelectedDateKey(day.key)}
                 />
               ))}
             </div>
@@ -139,7 +143,7 @@ export function CalendarBoard({
       </Card>
 
       <div className="grid gap-6">
-        <SelectedDatePanel dateKey={selectedDateKey} events={selectedDateEvents} />
+        <SelectedDatePanel applicationId={applicationId} dateKey={selectedDateKey} events={selectedDateEvents} />
         <UpcomingEventList events={upcomingEvents} />
       </div>
 
@@ -192,11 +196,13 @@ function CalendarHeader({
 }
 
 function CalendarDayCell({
+  applicationId,
   day,
   events,
   onSelect,
   selected,
 }: {
+  applicationId?: string;
   day: ReturnType<typeof buildCalendarMonthDays>[number];
   events: CalendarEvent[];
   onSelect: () => void;
@@ -228,7 +234,7 @@ function CalendarDayCell({
         <Link
           aria-label={`${day.key}에 일정 등록`}
           className="rounded-control px-1.5 py-0.5 text-caption text-primary-600 hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-          href={`/calendar/new?date=${day.key}`}
+          href={calendarNewHref(day.key, applicationId)}
         >
           등록
         </Link>
@@ -252,14 +258,22 @@ function CalendarDayCell({
   );
 }
 
-function SelectedDatePanel({ dateKey, events }: { dateKey: string; events: CalendarEvent[] }) {
+function SelectedDatePanel({
+  applicationId,
+  dateKey,
+  events,
+}: {
+  applicationId?: string;
+  dateKey: string;
+  events: CalendarEvent[];
+}) {
   return (
     <Card>
       <CardContent>
         <div className="grid gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-h3 text-neutral-900">선택한 날짜</h2>
-            <LinkButton href={`/calendar/new?date=${dateKey}`} size="sm">
+            <LinkButton href={calendarNewHref(dateKey, applicationId)} size="sm">
               일정 등록
             </LinkButton>
           </div>
@@ -287,6 +301,14 @@ function SelectedDatePanel({ dateKey, events }: { dateKey: string; events: Calen
       </CardContent>
     </Card>
   );
+}
+
+function calendarNewHref(dateKey: string, applicationId?: string): string {
+  const params = new URLSearchParams({ date: dateKey });
+  if (applicationId) {
+    params.set("applicationId", applicationId);
+  }
+  return `/calendar/new?${params.toString()}`;
 }
 
 function UpcomingEventList({ events }: { events: CalendarEvent[] }) {

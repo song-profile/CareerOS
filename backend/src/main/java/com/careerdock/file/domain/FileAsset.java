@@ -81,6 +81,28 @@ public class FileAsset extends BaseTimeEntity {
         return asset;
     }
 
+    public static FileAsset createVersion(
+            FileAsset rootAsset,
+            String displayName,
+            String storageKey,
+            String originalFilename,
+            String mimeType,
+            long size,
+            int version
+    ) {
+        FileAsset asset = new FileAsset();
+        asset.user = rootAsset.user;
+        asset.category = rootAsset.category;
+        asset.displayName = displayName.trim();
+        asset.storageKey = storageKey;
+        asset.originalFilename = originalFilename;
+        asset.mimeType = mimeType;
+        asset.size = size;
+        asset.version = version;
+        asset.parentAssetId = rootAsset.id;
+        return asset;
+    }
+
     public Long getId() { return id; }
 
     public User getUser() { return user; }
@@ -100,4 +122,12 @@ public class FileAsset extends BaseTimeEntity {
     public int getVersion() { return version; }
 
     public Long getParentAssetId() { return parentAssetId; }
+
+    public Long getRootAssetId() {
+        return parentAssetId == null ? id : parentAssetId;
+    }
+
+    public boolean isRootVersion() {
+        return parentAssetId == null;
+    }
 }

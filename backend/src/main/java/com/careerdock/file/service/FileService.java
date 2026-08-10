@@ -55,12 +55,25 @@ public class FileService {
         List<FileAsset> assets = category == null
                 ? fileAssetRepository.findByUserIdOrderByCreatedAtDesc(userId)
                 : fileAssetRepository.findByUserIdAndCategoryOrderByCreatedAtDesc(userId, category);
-        return assets.stream().map(FileAssetResponse::from).toList();
+        return assets.stream()
+                .map(asset -> FileAssetResponse.from(asset, isLatest(userId, asset)))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public FileAssetResponse findOne(Long userId, Long fileId) {
-        return FileAssetResponse.from(getAsset(userId, fileId));
+        FileAsset asset = getAsset(userId, fileId);
+        return FileAssetResponse.from(asset, isLatest(userId, asset));
+    }
+
+    @Transactional(readOnly = true)
+    public List<FileAssetResponse> findVersions(Long userId, Long fileId) {
+        FileAsset asset = getAsset(userId, fileId);
+        Long rootAssetId = asset.getRootAssetId();
+        int latestVersion = fileAssetRepository.findMaxVersion(userId, rootAssetId);
+        return fileAssetRepository.findVersions(userId, rootAssetId).stream()
+                .map(version -> FileAssetResponse.from(version, version.getVersion() == latestVersion))
+                .toList();
     }
 
     /**
@@ -78,32 +91,53 @@ public class FileService {
             throw new FileHandlingException("업로드할 파일이 없습니다.");
         }
 
-        String originalFilename = sanitizeFilename(file.getOriginalFilename());
-        AllowedFileType type = AllowedFileType.resolve(extensionOf(originalFilename), file.getContentType())
-                .orElseThrow(() -> new FileHandlingException(
-                        "허용하지 않는 파일 형식입니다. 가능한 형식: " + AllowedFileType.allowedExtensions()));
-
-        // 저장 경로에는 사용자 입력이 한 조각도 들어가지 않는다.
-        String storageKey = userId + "/" + UUID.randomUUID() + "." + type.getExtension();
-        try (InputStream content = file.getInputStream()) {
-            storage.store(storageKey, content);
-        } catch (IOException exception) {
-            throw new FileHandlingException("파일을 읽지 못했습니다.");
-        }
+        StoredUpload storedUpload = storeUpload(userId, file);
 
         try {
             FileAsset asset = FileAsset.create(
                     user,
                     category,
-                    resolveDisplayName(displayName, originalFilename),
-                    storageKey,
-                    originalFilename,
-                    type.getMimeType(),
+                    resolveDisplayName(displayName, storedUpload.originalFilename()),
+                    storedUpload.storageKey(),
+                    storedUpload.originalFilename(),
+                    storedUpload.mimeType(),
                     file.getSize()
             );
             return FileAssetResponse.from(fileAssetRepository.saveAndFlush(asset));
         } catch (RuntimeException exception) {
-            storage.delete(storageKey);
+            storage.delete(storedUpload.storageKey());
+            throw exception;
+        }
+    }
+
+    @Transactional
+    public FileAssetResponse uploadVersion(Long userId, Long fileId, String displayName, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new FileHandlingException("업로드할 파일이 없습니다.");
+        }
+
+        FileAsset requestedAsset = fileAssetRepository.findByIdAndUserIdForUpdate(fileId, userId)
+                .orElseThrow(() -> new NotFoundException("파일을 찾을 수 없습니다."));
+        FileAsset rootAsset = requestedAsset.isRootVersion()
+                ? requestedAsset
+                : fileAssetRepository.findByIdAndUserIdForUpdate(requestedAsset.getRootAssetId(), userId)
+                .orElseThrow(() -> new NotFoundException("파일을 찾을 수 없습니다."));
+        int nextVersion = fileAssetRepository.findMaxVersion(userId, rootAsset.getId()) + 1;
+        StoredUpload storedUpload = storeUpload(userId, file);
+
+        try {
+            FileAsset asset = FileAsset.createVersion(
+                    rootAsset,
+                    resolveDisplayName(displayName, rootAsset.getDisplayName()),
+                    storedUpload.storageKey(),
+                    storedUpload.originalFilename(),
+                    storedUpload.mimeType(),
+                    file.getSize(),
+                    nextVersion
+            );
+            return FileAssetResponse.from(fileAssetRepository.saveAndFlush(asset), true);
+        } catch (RuntimeException exception) {
+            storage.delete(storedUpload.storageKey());
             throw exception;
         }
     }
@@ -132,6 +166,9 @@ public class FileService {
         if (applicationFileRepository.existsByFileAssetId(fileId)) {
             throw new ConflictException("지원 건에 연결된 파일입니다. 연결을 먼저 해제해주세요.");
         }
+        if (fileAssetRepository.existsByParentAssetId(fileId)) {
+            throw new ConflictException("다른 버전이 연결된 원본 파일입니다. 버전 기록을 유지해야 합니다.");
+        }
         fileAssetRepository.delete(asset);
         fileAssetRepository.flush();
         storage.delete(asset.getStorageKey());
@@ -141,6 +178,30 @@ public class FileService {
         // 남의 파일은 존재 자체를 알리지 않는다. 권한 없음 대신 404로 응답한다.
         return fileAssetRepository.findByIdAndUserId(fileId, userId)
                 .orElseThrow(() -> new NotFoundException("파일을 찾을 수 없습니다."));
+    }
+
+    private boolean isLatest(Long userId, FileAsset asset) {
+        return asset.getVersion() == fileAssetRepository.findMaxVersion(userId, asset.getRootAssetId());
+    }
+
+    private StoredUpload storeUpload(Long userId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new FileHandlingException("업로드할 파일이 없습니다.");
+        }
+
+        String originalFilename = sanitizeFilename(file.getOriginalFilename());
+        AllowedFileType type = AllowedFileType.resolve(extensionOf(originalFilename), file.getContentType())
+                .orElseThrow(() -> new FileHandlingException(
+                        "허용하지 않는 파일 형식입니다. 가능한 형식: " + AllowedFileType.allowedExtensions()));
+        String storageKey = userId + "/" + UUID.randomUUID() + "." + type.getExtension();
+
+        try (InputStream content = file.getInputStream()) {
+            storage.store(storageKey, content);
+        } catch (IOException exception) {
+            throw new FileHandlingException("파일을 읽지 못했습니다.");
+        }
+
+        return new StoredUpload(storageKey, originalFilename, type.getMimeType());
     }
 
     /** 경로 조각을 떼고 파일명만 남긴다. `../../etc/passwd`는 `passwd`가 된다. */
@@ -171,5 +232,8 @@ public class FileService {
             throw new BadRequestException("표시 이름은 " + MAX_DISPLAY_NAME_LENGTH + "자 이하여야 합니다.");
         }
         return trimmed;
+    }
+
+    private record StoredUpload(String storageKey, String originalFilename, String mimeType) {
     }
 }

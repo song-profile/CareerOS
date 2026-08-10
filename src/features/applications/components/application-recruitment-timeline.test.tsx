@@ -1,0 +1,159 @@
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  ApplicationRecruitmentTimeline,
+  getTimelineEventState,
+  sortRecruitmentEvents,
+} from "@/features/applications/components/application-recruitment-timeline";
+import {
+  deleteCalendarEvent,
+  syncGoogleCalendar,
+} from "@/features/calendar/api/calendar-api";
+import type { CalendarEvent } from "@/features/calendar/types";
+
+const refresh = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh }),
+}));
+
+vi.mock("@/features/calendar/api/calendar-api", () => ({
+  deleteCalendarEvent: vi.fn(),
+  syncGoogleCalendar: vi.fn(),
+}));
+
+describe("ApplicationRecruitmentTimeline", () => {
+  beforeEach(() => {
+    vi.mocked(deleteCalendarEvent).mockResolvedValue(undefined);
+    vi.mocked(syncGoogleCalendar).mockResolvedValue({
+      attempted: 1,
+      synced: 1,
+      failed: 0,
+    });
+    refresh.mockClear();
+  });
+
+  it("shows empty state with application-bound add link", () => {
+    render(<ApplicationRecruitmentTimeline applicationId="10" events={[]} />);
+
+    expect(screen.getByText("아직 등록된 채용 일정이 없습니다.")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "일정 추가" }).at(-1)).toHaveAttribute(
+      "href",
+      "/calendar/new?applicationId=10",
+    );
+  });
+
+  it("sorts events and renders d-day, state, and sync status", () => {
+    render(
+      <ApplicationRecruitmentTimeline
+        applicationId="10"
+        events={[
+          eventFixture({ id: "2", title: "1차 면접", startAt: "2026-08-22T01:00:00Z", syncStatus: "SYNCED" }),
+          eventFixture({ id: "1", title: "지원 마감", eventType: "APPLICATION_DEADLINE", startAt: "2026-08-20T09:00:00Z", syncStatus: "PENDING" }),
+        ]}
+      />,
+    );
+
+    const items = screen.getAllByRole("listitem");
+    expect(within(items[0]).getAllByText("지원 마감")).toHaveLength(2);
+    expect(within(items[0]).getByText("동기화 대기")).toBeInTheDocument();
+    expect(within(items[1]).getByText("1차 면접")).toBeInTheDocument();
+    expect(within(items[1]).getByText("동기화됨")).toBeInTheDocument();
+  });
+
+  it("requests Google Calendar resync for failed events", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ApplicationRecruitmentTimeline
+        applicationId="10"
+        events={[
+          eventFixture({
+            id: "3",
+            syncFailureReason: "Google API 오류",
+            syncStatus: "FAILED",
+          }),
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "다시 동기화" }));
+
+    expect(syncGoogleCalendar).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Google Calendar 재동기화를 요청했습니다.")).toBeInTheDocument();
+  });
+
+  it("deletes a linked recruitment event", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ApplicationRecruitmentTimeline
+        applicationId="10"
+        events={[eventFixture({ id: "7", title: "코딩테스트" })]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "삭제" }));
+    await user.click(screen.getAllByRole("button", { name: "삭제" }).at(-1)!);
+
+    expect(deleteCalendarEvent).toHaveBeenCalledWith("7");
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies past, today, and future event states", () => {
+    const baseDate = new Date("2026-08-20T03:00:00Z");
+
+    expect(
+      getTimelineEventState(eventFixture({ startAt: "2026-08-18T01:00:00Z", endAt: "2026-08-18T02:00:00Z" }), baseDate),
+    ).toBe("done");
+    expect(getTimelineEventState(eventFixture({ startAt: "2026-08-20T01:00:00Z" }), baseDate)).toBe("today");
+    expect(getTimelineEventState(eventFixture({ startAt: "2026-08-23T01:00:00Z" }), baseDate)).toBe("upcoming");
+  });
+
+  it("sorts by start time and event type", () => {
+    const sorted = sortRecruitmentEvents([
+      eventFixture({ id: "2", eventType: "FIRST_INTERVIEW", startAt: "2026-08-22T01:00:00Z" }),
+      eventFixture({ id: "1", eventType: "CODING_TEST", startAt: "2026-08-21T01:00:00Z" }),
+    ]);
+
+    expect(sorted.map((event) => event.id)).toEqual(["1", "2"]);
+  });
+});
+
+type CalendarEventFixtureOverrides = Omit<Partial<CalendarEvent>, "endAt" | "startAt"> & {
+  endAt?: Date | string;
+  startAt?: Date | string;
+};
+
+function eventFixture(overrides: CalendarEventFixtureOverrides = {}): CalendarEvent {
+  const { endAt: endAtOverride, startAt: startAtOverride, ...eventOverrides } = overrides;
+  const startAt = new Date(startAtOverride ?? "2026-08-21T01:00:00Z");
+  const endAt = new Date(endAtOverride ?? startAt.getTime() + 60 * 60 * 1000);
+
+  return {
+    id: "1",
+    applicationId: "10",
+    companyName: "KB국민은행",
+    positionName: "IT 개발",
+    eventType: "CODING_TEST",
+    sourceType: "APPLICATION",
+    autoGenerated: false,
+    title: "코딩테스트",
+    allDay: false,
+    location: "서울",
+    onlineUrl: "https://meet.example.com",
+    memo: "준비물 확인",
+    reminderRules: [],
+    googleEventId: "google-event-1",
+    syncStatus: "SYNCED",
+    syncFailureReason: undefined,
+    googleSyncedAt: new Date("2026-08-19T01:00:00Z"),
+    createdAt: new Date("2026-08-18T01:00:00Z"),
+    updatedAt: new Date("2026-08-18T01:00:00Z"),
+    ...eventOverrides,
+    startAt,
+    endAt,
+  };
+}

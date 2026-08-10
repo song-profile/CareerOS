@@ -1,5 +1,6 @@
 package com.careerdock.calendar.controller;
 
+import com.careerdock.calendar.dto.CalendarAutoSyncRequest;
 import com.careerdock.calendar.dto.CalendarConnectResponse;
 import com.careerdock.calendar.dto.CalendarStatusResponse;
 import com.careerdock.calendar.dto.CalendarSyncResponse;
@@ -8,11 +9,14 @@ import com.careerdock.calendar.service.GoogleCalendarSyncService;
 import com.careerdock.global.auth.CurrentUserAccessor;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import java.io.IOException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -57,6 +61,11 @@ public class GoogleCalendarController {
     @GetMapping("/status")
     public CalendarStatusResponse status() {
         return syncService.status(currentUserAccessor.getCurrentUserId());
+    }
+
+    @PatchMapping("/auto-sync")
+    public CalendarStatusResponse updateAutoSync(@Valid @RequestBody CalendarAutoSyncRequest request) {
+        return syncService.updateAutoSync(currentUserAccessor.getCurrentUserId(), request.enabled());
     }
 
     @PostMapping("/sync")
