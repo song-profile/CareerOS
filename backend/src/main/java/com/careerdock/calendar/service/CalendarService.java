@@ -15,6 +15,7 @@ import com.careerdock.user.domain.User;
 import com.careerdock.user.repository.UserRepository;
 import java.time.Instant;
 import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -29,18 +30,18 @@ public class CalendarService {
     private final RecruitmentEventRepository eventRepository;
     private final ApplicationRepository applicationRepository;
     private final UserRepository userRepository;
-    private final GoogleCalendarSyncService googleCalendarSyncService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CalendarService(
             RecruitmentEventRepository eventRepository,
             ApplicationRepository applicationRepository,
             UserRepository userRepository,
-            GoogleCalendarSyncService googleCalendarSyncService
+            ApplicationEventPublisher eventPublisher
     ) {
         this.eventRepository = eventRepository;
         this.applicationRepository = applicationRepository;
         this.userRepository = userRepository;
-        this.googleCalendarSyncService = googleCalendarSyncService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -85,7 +86,7 @@ public class CalendarService {
         );
         event.replaceReminderRules(toReminderRules(event, request.reminderRules()));
         RecruitmentEvent saved = eventRepository.save(event);
-        googleCalendarSyncService.pushUpsert(saved);
+        eventPublisher.publishEvent(new RecruitmentEventUpsertRequested(saved.getId()));
         return RecruitmentEventResponse.from(saved);
     }
 
@@ -104,14 +105,15 @@ public class CalendarService {
                 request.memo()
         );
         event.replaceReminderRules(toReminderRules(event, request.reminderRules()));
-        googleCalendarSyncService.pushUpsert(event);
+        eventPublisher.publishEvent(new RecruitmentEventUpsertRequested(event.getId()));
         return RecruitmentEventResponse.from(event);
     }
 
     @Transactional
     public void delete(Long userId, Long eventId) {
         RecruitmentEvent event = getEvent(userId, eventId);
-        googleCalendarSyncService.pushDelete(event);
+        eventPublisher.publishEvent(
+                new RecruitmentEventDeleteRequested(event.getId(), userId, event.getGoogleEventId()));
         eventRepository.delete(event);
     }
 
