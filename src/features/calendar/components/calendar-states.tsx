@@ -57,6 +57,46 @@ export function EventFormSkeleton() {
   );
 }
 
+export function EventDetailSkeleton() {
+  return (
+    <div
+      aria-label="일정 상세를 불러오는 중입니다."
+      className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start"
+      role="status"
+    >
+      <div className="grid gap-6">
+        <Card variant="highlight">
+          <CardContent>
+            <div className="grid gap-3">
+              <SkeletonBlock className="h-5 w-1/4" />
+              <SkeletonBlock className="h-8 w-2/3" />
+              <SkeletonBlock className="h-4 w-1/3" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <div className="grid gap-3">
+              <SkeletonBlock className="h-5 w-1/5" />
+              {["a", "b", "c", "d"].map((key) => (
+                <SkeletonBlock className="h-8 w-full" key={key} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      <Card>
+        <CardContent>
+          <div className="grid gap-3">
+            <SkeletonBlock className="h-5 w-1/3" />
+            <SkeletonBlock className="h-16 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function CalendarEmptyState({
   actionHref,
   actionLabel = "일정 등록",

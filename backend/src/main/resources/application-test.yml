@@ -1,4 +1,13 @@
 spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            # 테스트 전용 더미. 실제 Google 호출은 하지 않으며, application.yml에서
+            # 기본값을 뺐기 때문에 컨텍스트 로딩용으로만 채워둔다.
+            client-id: test-client-id
+            client-secret: test-client-secret
   datasource:
     url: jdbc:tc:postgresql:16-alpine:///careerdock_test
     driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver

@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { fetchApplicationsForCurrentUser } from "@/features/applications/api/server-application-api";
 import type { ApplicationListItem } from "@/features/applications/types";
 import type { CalendarEvent } from "@/features/calendar/types";
@@ -10,6 +9,7 @@ import { toCalendarEventViewModel } from "@/features/calendar/api/mapper";
 import { createApiUrl } from "@/lib/api/client";
 import { getServerResultErrorMessage } from "@/lib/api/error-message";
 import { apiEndpoints } from "@/lib/api/endpoints";
+import { createServerCookieHeader } from "@/lib/api/server-cookie";
 import type { ApiQueryParams } from "@/lib/api/types";
 
 export type CalendarResult<TValue> =
@@ -84,13 +84,4 @@ async function serverCalendarRequest<TValue>(
   } catch {
     return { ok: false, message: "네트워크 연결을 확인한 뒤 다시 시도해 주세요." };
   }
-}
-
-async function createServerCookieHeader(): Promise<string> {
-  const cookieStore = await cookies();
-
-  return cookieStore
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join("; ");
 }

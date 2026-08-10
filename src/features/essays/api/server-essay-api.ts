@@ -1,5 +1,6 @@
-import { cookies } from "next/headers";
-import { createApiUrl } from "@/lib/api/client";
+import { ApiClientError } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { serverApiRequest } from "@/lib/api/server-client";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import type { ApiQueryParams } from "@/lib/api/types";
 import { fetchApplicationForCurrentUser } from "@/features/applications/api/server-application-api";
@@ -148,36 +149,12 @@ async function serverEssayRequest<TValue>(
   query?: ApiQueryParams,
 ): Promise<EssayApiResult<TValue>> {
   try {
-    const response = await fetch(createApiUrl(path, query), {
-      cache: "no-store",
-      credentials: "include",
-      headers: {
-        Accept: "application/json",
-        Cookie: await createServerCookieHeader(),
-      },
-    });
-
-    if (!response.ok) {
-      return {
-        ok: false,
-        message: response.status === 404
-          ? "자소서 정보를 찾을 수 없습니다."
-          : "자소서 정보를 불러올 수 없습니다.",
-        status: response.status,
-      };
-    }
-
-    return { ok: true, value: (await response.json()) as TValue };
-  } catch {
-    return { ok: false, message: "자소서 API에 연결할 수 없습니다." };
+    return { ok: true, value: await serverApiRequest<TValue>(path, query) };
+  } catch (error) {
+    return {
+      ok: false,
+      message: getApiErrorMessage(error, "자소서 정보를 조회"),
+      status: error instanceof ApiClientError ? error.status : undefined,
+    };
   }
-}
-
-async function createServerCookieHeader(): Promise<string> {
-  const cookieStore = await cookies();
-
-  return cookieStore
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join("; ");
 }

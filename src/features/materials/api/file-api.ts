@@ -1,5 +1,6 @@
-import { apiClient, createApiUrl } from "@/lib/api/client";
+import { apiClient, createApiUrl, parseResponseBody } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
+import { createHttpError, createNetworkError } from "@/lib/api/errors";
 import { defineEndpoint } from "@/lib/api/prepared-api";
 import type { ApiModuleContract } from "@/lib/api/types";
 import type { MaterialFile, MaterialFileType } from "@/features/materials/types";
@@ -91,12 +92,17 @@ export function getFileDownloadUrl(id: string): string {
 }
 
 export async function downloadFileBlob(id: string): Promise<Blob> {
-  const response = await fetch(getFileDownloadUrl(id), {
-    credentials: "include",
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(getFileDownloadUrl(id), { credentials: "include" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Network request failed.";
+    throw createNetworkError(message, error);
+  }
 
   if (!response.ok) {
-    throw new Error("파일을 다운로드할 수 없습니다.");
+    throw createHttpError(response.status, await parseResponseBody(response), response.headers);
   }
 
   return response.blob();

@@ -12,7 +12,6 @@ import { MaterialsEmptyState } from "@/features/materials/components/materials-s
 import {
   filterCredentials,
   formatCredentialDate,
-  maskCredentialNumber,
   sortCredentials,
 } from "@/features/materials/credential-utils";
 import type {
@@ -167,8 +166,8 @@ export function CredentialList({ credentials }: CredentialListProps) {
                       <div className="flex flex-wrap items-center gap-x-2">
                         <span>자격번호</span>
                         <span className="break-all font-mono text-mono text-neutral-900">
-                          {credential.credentialNumber
-                            ? maskCredentialNumber(credential.credentialNumber)
+                          {credential.hasCredentialNumber
+                            ? credential.credentialNumberMasked
                             : "미입력"}
                         </span>
                       </div>

@@ -86,7 +86,7 @@ export function toCredentialViewModel(dto: CredentialDto): Credential {
     name: dto.name,
     issuer: dto.issuer ?? "",
     acquiredAt: toDate(dto.acquiredAt),
-    credentialNumber: dto.credentialNumberMasked ?? "",
+    credentialNumberMasked: dto.credentialNumberMasked ?? "",
     hasCredentialNumber: dto.hasCredentialNumber,
     score: dto.score ?? "",
     grade: dto.grade ?? "",

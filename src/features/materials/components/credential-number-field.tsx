@@ -6,73 +6,81 @@ import { copyToClipboard } from "@/components/ui/copy-field";
 import { getCredentialNumber } from "@/features/materials/materials-service";
 import { cn } from "@/lib/utils/cn";
 
-type FieldState = "idle" | "loading" | "copied" | "failed";
-
 interface CredentialNumberFieldProps {
   credentialId: string;
-  hasCredentialNumber: boolean;
+  /** 서버가 이미 가려서 내려준 값. 기본 표시는 항상 이 값이다. */
   maskedValue: string;
+  hasCredentialNumber: boolean;
 }
 
+/**
+ * 자격번호 표시. 평문은 화면에 처음부터 내려오지 않는다.
+ *
+ * MaskedField와 달리 "보기"를 누른 시점에 서버에서 평문을 가져온다. 그 조회는
+ * 백엔드에 접근 기록을 남기므로, 한 번 받은 값은 이 컴포넌트가 들고 있다가 재사용해
+ * 같은 화면에서 열고 닫기를 반복해도 기록이 늘지 않는다.
+ * 값은 상태로만 두고 브라우저 저장소에는 아무것도 남기지 않는다.
+ */
 export function CredentialNumberField({
   credentialId,
   hasCredentialNumber,
   maskedValue,
 }: CredentialNumberFieldProps) {
+  const [plainNumber, setPlainNumber] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
-  const [fullNumber, setFullNumber] = useState("");
-  const [state, setState] = useState<FieldState>("idle");
+  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [noticeFailed, setNoticeFailed] = useState(false);
 
   async function loadNumber(): Promise<string | null> {
-    if (fullNumber) {
-      return fullNumber;
+    if (plainNumber !== null) {
+      return plainNumber;
     }
 
-    setState("loading");
+    setLoading(true);
+    setNotice("조회 중");
+    setNoticeFailed(false);
+
     const result = await getCredentialNumber(credentialId);
+    setLoading(false);
 
     if (!result.ok) {
-      setState("failed");
-      window.setTimeout(() => setState("idle"), 2000);
+      // 값은 어떤 경로로도 메시지에 넣지 않는다.
+      setNotice(result.message);
+      setNoticeFailed(true);
       return null;
     }
 
-    setFullNumber(result.value);
-    setState("idle");
+    setPlainNumber(result.value);
+    setNotice("");
     return result.value;
   }
 
-  async function handleReveal() {
+  async function handleToggle() {
     if (revealed) {
       setRevealed(false);
       return;
     }
 
-    const loaded = await loadNumber();
-
-    if (loaded) {
+    if (await loadNumber()) {
       setRevealed(true);
     }
   }
 
   async function handleCopy() {
-    const loaded = await loadNumber();
+    const value = await loadNumber();
 
-    if (!loaded) {
+    if (!value) {
       return;
     }
 
-    const succeeded = await copyToClipboard(loaded);
-    setState(succeeded ? "copied" : "failed");
-    window.setTimeout(() => setState("idle"), 2000);
+    const succeeded = await copyToClipboard(value);
+    setNotice(succeeded ? "복사됨" : "복사 실패");
+    setNoticeFailed(!succeeded);
+    window.setTimeout(() => setNotice(""), 2000);
   }
 
-  const disabled = !hasCredentialNumber || state === "loading";
-  const displayValue = hasCredentialNumber
-    ? revealed && fullNumber
-      ? fullNumber
-      : maskedValue
-    : "미입력";
+  const disabled = !hasCredentialNumber || loading;
 
   return (
     <div className="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -85,26 +93,25 @@ export function CredentialNumberField({
             hasCredentialNumber ? "text-neutral-900" : "text-neutral-400",
           )}
         >
-          {displayValue}
+          {!hasCredentialNumber
+            ? "미입력"
+            : revealed && plainNumber !== null
+              ? plainNumber
+              : maskedValue}
         </span>
 
         <div className="flex shrink-0 items-center gap-2">
           <span
             aria-live="polite"
-            className={cn(
-              "text-caption",
-              state === "failed" ? "text-danger-600" : "text-success-700",
-            )}
+            className={cn("text-caption", noticeFailed ? "text-danger-600" : "text-success-700")}
             role="status"
           >
-            {state === "loading" ? "조회 중" : null}
-            {state === "copied" ? "복사됨" : null}
-            {state === "failed" ? "조회 실패" : null}
+            {notice}
           </span>
           <Button
             aria-label={revealed ? "자격번호 가리기" : "자격번호 전체 보기"}
             disabled={disabled}
-            onClick={() => void handleReveal()}
+            onClick={() => void handleToggle()}
             size="sm"
             variant="ghost"
           >

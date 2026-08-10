@@ -20,6 +20,7 @@ import {
   filterMaterialFiles,
   formatFileSize,
   formatMaterialFileDate,
+  MATERIAL_FILE_MAX_SIZE_BYTES,
   MATERIAL_FILE_TYPE_FILTERS,
 } from "@/features/materials/file-utils";
 import type {
@@ -27,6 +28,7 @@ import type {
   MaterialFileType,
   MaterialFileTypeFilter,
 } from "@/features/materials/types";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 export interface MaterialFileListProps {
   files: MaterialFile[];
@@ -68,8 +70,8 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
       anchor.click();
       URL.revokeObjectURL(url);
       showNotice("파일 다운로드를 시작했습니다.", "success");
-    } catch {
-      showNotice("파일 다운로드에 실패했습니다.", "error");
+    } catch (error) {
+      showNotice(getApiErrorMessage(error, "파일을 다운로드"), "error");
     }
   }
 
@@ -84,8 +86,8 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
       setPreviewFile(uploaded);
       showNotice("파일을 업로드했습니다.", "success");
       return true;
-    } catch {
-      showNotice("파일 업로드에 실패했습니다.", "error");
+    } catch (error) {
+      showNotice(getApiErrorMessage(error, "파일을 업로드"), "error");
       return false;
     }
   }
@@ -97,9 +99,9 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
       setPreviewFile((current) => current?.id === file.id ? null : current);
       setDeleteTarget(null);
       showNotice("파일을 삭제했습니다.", "success");
-    } catch {
+    } catch (error) {
       setDeleteTarget(null);
-      showNotice("파일 삭제에 실패했습니다.", "error");
+      showNotice(getApiErrorMessage(error, "파일을 삭제"), "error");
     }
   }
 
@@ -410,7 +412,16 @@ function MaterialFileUploadDialog({
   const [submitting, setSubmitting] = useState(false);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    setFile(event.target.files?.[0] ?? null);
+    const nextFile = event.target.files?.[0] ?? null;
+
+    if (nextFile && nextFile.size > MATERIAL_FILE_MAX_SIZE_BYTES) {
+      setFile(null);
+      setError(`파일 크기는 ${formatFileSize(MATERIAL_FILE_MAX_SIZE_BYTES)} 이하여야 합니다.`);
+      event.target.value = "";
+      return;
+    }
+
+    setFile(nextFile);
     setError("");
   }
 
@@ -447,6 +458,7 @@ function MaterialFileUploadDialog({
         <Input
           ref={fileInputRef}
           errorMessage={error}
+          helperText={`최대 ${formatFileSize(MATERIAL_FILE_MAX_SIZE_BYTES)}까지 업로드할 수 있습니다.`}
           label="파일"
           onChange={handleFileChange}
           required

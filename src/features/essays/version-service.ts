@@ -9,7 +9,7 @@ import {
   toEssayAnswerVersion,
   withAnswerGroupId,
 } from "@/features/essays/api/mapper";
-import { ApiClientError } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import type {
   CreateEssayVersionPayload,
   EssayAnswerVersion,
@@ -44,7 +44,7 @@ export async function getEssayVersions(
       value: versions.map((version) => withAnswerGroupId(toEssayAnswerVersion(version), answerGroupId)),
     };
   } catch (error) {
-    return { ok: false, message: getVersionActionErrorMessage(error) };
+    return { ok: false, message: getApiErrorMessage(error, "버전 목록을 조회") };
   }
 }
 
@@ -90,7 +90,7 @@ export async function createEssayVersion(
       value: withAnswerGroupId(toEssayAnswerVersion(created), answerGroupId),
     };
   } catch (error) {
-    return { ok: false, message: getVersionActionErrorMessage(error) };
+    return { ok: false, message: getApiErrorMessage(error, "새 버전을 생성") };
   }
 }
 
@@ -155,7 +155,7 @@ export async function updateEssayTags(
       },
     };
   } catch (error) {
-    return { ok: false, message: getVersionActionErrorMessage(error) };
+    return { ok: false, message: getApiErrorMessage(error, "태그를 변경") };
   }
 }
 
@@ -179,12 +179,4 @@ export async function compareEssayVersions(
   return left && right
     ? { ok: true, value: { left, right } }
     : { ok: false, message: "비교할 버전을 찾을 수 없습니다." };
-}
-
-function getVersionActionErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    return error.message;
-  }
-
-  return "버전 요청을 처리할 수 없습니다.";
 }

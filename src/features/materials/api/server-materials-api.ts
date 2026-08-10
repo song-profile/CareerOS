@@ -1,7 +1,7 @@
-import { cookies } from "next/headers";
 import { getCurrentUserFromSession } from "@/features/auth/api/server-auth";
 import { createApiUrl } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
+import { createServerCookieHeader } from "@/lib/api/server-cookie";
 import type { ApiQueryParams } from "@/lib/api/types";
 import type {
   CredentialDto,
@@ -136,13 +136,4 @@ async function serverMaterialsRequest<TValue>(
   } catch {
     return { ok: false, message: fallbackMessage };
   }
-}
-
-async function createServerCookieHeader(): Promise<string> {
-  const cookieStore = await cookies();
-
-  return cookieStore
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join("; ");
 }

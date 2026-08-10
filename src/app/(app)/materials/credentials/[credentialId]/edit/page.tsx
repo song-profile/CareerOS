@@ -24,22 +24,30 @@ export default async function EditCredentialPage({ params }: EditCredentialPageP
     );
   }
 
-  const initialValues = toCredentialFormValues(result.value);
-
-  if (result.value.hasCredentialNumber) {
-    const numberResult = await getCredentialNumberForCurrentUser(credentialId);
-
-    if (numberResult.ok) {
-      initialValues.credentialNumber = numberResult.value;
-    }
-  }
+  // PATCH는 전체 교체다. 폼에 마스킹 값을 채우면 저장 시 원본을 덮어쓰므로,
+  // 수정 화면에서만 평문을 따로 받아 채운다. 이 조회는 서버에 접근 기록이 남는다.
+  // 번호가 없는 자격은 서버가 404로 답하므로 아예 호출하지 않는다.
+  const numberResult = result.value.hasCredentialNumber
+    ? await getCredentialNumberForCurrentUser(credentialId)
+    : null;
 
   return (
     <>
       <PageHeader description={result.value.name} title="자격 수정" />
+      {numberResult && !numberResult.ok ? (
+        <p
+          className="rounded-control border border-danger-100 bg-danger-50 px-3 py-2 text-caption text-danger-700"
+          role="status"
+        >
+          {numberResult.message} 이대로 저장하면 등록된 자격번호가 지워집니다.
+        </p>
+      ) : null}
       <CredentialForm
         credentialId={credentialId}
-        initialValues={initialValues}
+        initialValues={toCredentialFormValues(
+          result.value,
+          numberResult?.ok ? numberResult.value : "",
+        )}
         mode="edit"
       />
     </>

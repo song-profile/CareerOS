@@ -1,5 +1,6 @@
-import { cookies } from "next/headers";
-import { ApiClientError, createApiUrl } from "@/lib/api/client";
+import { ApiClientError } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { serverApiRequest } from "@/lib/api/server-client";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import type { ApiQueryParams } from "@/lib/api/types";
 import type { ApplicationDetail } from "@/features/applications/detail-types";
@@ -48,40 +49,12 @@ async function serverApplicationRequest<TValue>(
   query?: ApiQueryParams,
 ): Promise<ApplicationApiResult<TValue>> {
   try {
-    const response = await fetch(createApiUrl(path, query), {
-      cache: "no-store",
-      credentials: "include",
-      headers: {
-        Accept: "application/json",
-        Cookie: await createServerCookieHeader(),
-      },
-    });
-
-    if (!response.ok) {
-      return {
-        ok: false,
-        message: response.status === 404
-          ? "지원 건을 찾을 수 없습니다."
-          : "지원 정보를 불러올 수 없습니다.",
-        status: response.status,
-      };
-    }
-
-    return { ok: true, value: (await response.json()) as TValue };
+    return { ok: true, value: await serverApiRequest<TValue>(path, query) };
   } catch (error) {
-    if (error instanceof ApiClientError) {
-      return { ok: false, message: error.message, status: error.status };
-    }
-
-    return { ok: false, message: "지원 API에 연결할 수 없습니다." };
+    return {
+      ok: false,
+      message: getApiErrorMessage(error, "지원 정보를 조회"),
+      status: error instanceof ApiClientError ? error.status : undefined,
+    };
   }
-}
-
-async function createServerCookieHeader(): Promise<string> {
-  const cookieStore = await cookies();
-
-  return cookieStore
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join("; ");
 }

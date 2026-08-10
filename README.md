@@ -125,6 +125,7 @@ GOOGLE_CLIENT_ID=replace-with-google-client-id
 GOOGLE_CLIENT_SECRET=replace-with-google-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:8080/login/oauth2/code/google
 GOOGLE_CALENDAR_REDIRECT_URI=http://localhost:8080/api/calendar/oauth/callback
+GOOGLE_TOKEN_ENCRYPTION_KEY=replace-with-base64-32-byte-key
 CREDENTIAL_ENCRYPTION_KEY=replace-with-base64-32-byte-key
 ```
 

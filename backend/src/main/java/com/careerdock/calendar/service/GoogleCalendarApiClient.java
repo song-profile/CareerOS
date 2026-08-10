@@ -18,6 +18,8 @@ import com.google.api.services.calendar.model.EventDateTime;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.Date;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -30,6 +32,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class GoogleCalendarApiClient {
+
+    private static final Logger log = LoggerFactory.getLogger(GoogleCalendarApiClient.class);
 
     private static final String APPLICATION_NAME = "CareerDock";
     private static final String CALENDAR_SUMMARY = "CareerDock";
@@ -57,7 +61,7 @@ public class GoogleCalendarApiClient {
 
     private boolean calendarExists(Calendar client, String calendarId) {
         try {
-            withRetry(() -> client.calendars().get(calendarId).execute());
+            withRetry("calendars.get", () -> client.calendars().get(calendarId).execute());
             return true;
         } catch (GoogleResourceNotFoundException notFound) {
             return false;
@@ -70,23 +74,24 @@ public class GoogleCalendarApiClient {
         calendar.setDescription(CALENDAR_DESCRIPTION);
         calendar.setTimeZone(TIME_ZONE);
         com.google.api.services.calendar.model.Calendar created =
-                withRetry(() -> client.calendars().insert(calendar).execute());
+                withRetry("calendars.insert", () -> client.calendars().insert(calendar).execute());
         return created.getId();
     }
 
     public Event insertEvent(Credential credential, String calendarId, RecruitmentEvent event) {
         Calendar client = client(credential);
-        return withRetry(() -> client.events().insert(calendarId, toGoogleEvent(event)).execute());
+        return withRetry("events.insert", () -> client.events().insert(calendarId, toGoogleEvent(event)).execute());
     }
 
     public Event updateEvent(Credential credential, String calendarId, String googleEventId, RecruitmentEvent event) {
         Calendar client = client(credential);
-        return withRetry(() -> client.events().update(calendarId, googleEventId, toGoogleEvent(event)).execute());
+        return withRetry("events.update",
+                () -> client.events().update(calendarId, googleEventId, toGoogleEvent(event)).execute());
     }
 
     public void deleteEvent(Credential credential, String calendarId, String googleEventId) {
         Calendar client = client(credential);
-        withRetry(() -> {
+        withRetry("events.delete", () -> {
             client.events().delete(calendarId, googleEventId).execute();
             return null;
         });
@@ -101,7 +106,7 @@ public class GoogleCalendarApiClient {
                 .setDescription(TEST_EVENT_DESCRIPTION)
                 .setStart(new EventDateTime().setDateTime(new DateTime(now)).setTimeZone(TIME_ZONE))
                 .setEnd(new EventDateTime().setDateTime(new DateTime(thirtyMinutesLater)).setTimeZone(TIME_ZONE));
-        return withRetry(() -> client.events().insert(calendarId, event).execute());
+        return withRetry("events.insert(test)", () -> client.events().insert(calendarId, event).execute());
     }
 
     private Calendar client(Credential credential) {
@@ -134,57 +139,87 @@ public class GoogleCalendarApiClient {
         return googleEvent;
     }
 
-    private <T> T withRetry(GoogleCall<T> call) {
+    /**
+     * Google 응답은 여기서 CareerDock 예외로 바뀌면서 원래 상태 코드와 사유가 사라진다.
+     * 남기지 않으면 운영에서는 "GOOGLE_API_ERROR"만 보이고 무엇이 왜 실패했는지 알 수 없다.
+     *
+     * 로그에 남기는 것은 Google이 돌려준 상태/사유와 우리 endpoint뿐이다. 토큰은 Credential
+     * 안에만 있고 이 자리로 넘어오지 않는다(google-api-client 로그 레벨은 application.yml에서 올려둠).
+     */
+    private <T> T withRetry(String operation, GoogleCall<T> call) {
         int attempt = 0;
         while (true) {
             try {
                 return call.execute();
             } catch (GoogleJsonResponseException exception) {
-                if (exception.getStatusCode() == 404) {
+                int status = exception.getStatusCode();
+                if (status == 404) {
+                    // 호출자가 캘린더 재생성/연결 해제로 정상 처리하는 흐름이라 경고가 아니다.
+                    log.debug("google calendar 404: operation={}, googleStatus=404, reason={}",
+                            operation, firstReason(exception));
                     throw new GoogleResourceNotFoundException();
                 }
-                if (exception.getStatusCode() == 401) {
+                if (status == 401) {
+                    log.warn("google calendar 인증 실패: operation={}, googleStatus=401, reason={}, errorCode={}",
+                            operation, firstReason(exception), ErrorCode.GOOGLE_TOKEN_EXPIRED.code());
                     throw new CareerdockException(ErrorCode.GOOGLE_TOKEN_EXPIRED, ErrorCode.GOOGLE_TOKEN_EXPIRED.message());
                 }
                 if (isRateLimited(exception)) {
                     if (attempt < MAX_RETRIES) {
+                        log.info("google calendar 쿼터 초과, 재시도: operation={}, googleStatus={}, reason={}, attempt={}/{}",
+                                operation, status, firstReason(exception), attempt + 1, MAX_RETRIES);
                         sleep(BACKOFF_MILLIS[attempt]);
                         attempt++;
                         continue;
                     }
+                    log.warn("google calendar 쿼터 초과, 재시도 소진: operation={}, googleStatus={}, reason={}, errorCode={}",
+                            operation, status, firstReason(exception), ErrorCode.GOOGLE_RATE_LIMITED.code());
                     throw new CareerdockException(ErrorCode.GOOGLE_RATE_LIMITED, ErrorCode.GOOGLE_RATE_LIMITED.message());
                 }
-                if (exception.getStatusCode() == 403) {
-                    throw new CareerdockException(forbiddenErrorCode(exception), forbiddenErrorCode(exception).message());
+                if (status == 403) {
+                    ErrorCode forbiddenCode = forbiddenErrorCode(exception);
+                    log.warn("google calendar 접근 거부: operation={}, googleStatus=403, reason={}, errorCode={}",
+                            operation, firstReason(exception), forbiddenCode.code());
+                    throw new CareerdockException(forbiddenCode, forbiddenCode.message());
                 }
+                log.warn("google calendar 호출 실패: operation={}, googleStatus={}, reason={}, errorCode={}",
+                        operation, status, firstReason(exception), ErrorCode.GOOGLE_API_ERROR.code());
                 throw new CareerdockException(ErrorCode.GOOGLE_API_ERROR, ErrorCode.GOOGLE_API_ERROR.message());
             } catch (IOException exception) {
                 if (attempt < MAX_RETRIES) {
+                    log.info("google calendar 통신 오류, 재시도: operation={}, cause={}, attempt={}/{}",
+                            operation, exception.getClass().getSimpleName(), attempt + 1, MAX_RETRIES);
                     sleep(BACKOFF_MILLIS[attempt]);
                     attempt++;
                     continue;
                 }
+                log.warn("google calendar 통신 오류, 재시도 소진: operation={}, cause={}, errorCode={}",
+                        operation, exception.getClass().getSimpleName(), ErrorCode.GOOGLE_API_ERROR.code());
                 throw new CareerdockException(ErrorCode.GOOGLE_API_ERROR, ErrorCode.GOOGLE_API_ERROR.message());
             }
         }
     }
 
+    /** Google이 준 사유 문자열(예: rateLimitExceeded, notFound). 본문 전체는 남기지 않는다. */
+    private String firstReason(GoogleJsonResponseException exception) {
+        if (exception.getDetails() == null || exception.getDetails().getErrors() == null) {
+            return "unknown";
+        }
+        return exception.getDetails().getErrors().stream()
+                .map(GoogleJsonError.ErrorInfo::getReason)
+                .filter(reason -> reason != null && !reason.isBlank())
+                .findFirst()
+                .orElse("unknown");
+    }
+
     private ErrorCode forbiddenErrorCode(GoogleJsonResponseException exception) {
-        String reason = firstGoogleErrorReason(exception);
+        String reason = firstReason(exception);
         if ("accessNotConfigured".equals(reason)
                 || "serviceDisabled".equals(reason)
                 || "apiDisabled".equals(reason)) {
             return ErrorCode.GOOGLE_CALENDAR_API_DISABLED;
         }
         return ErrorCode.GOOGLE_CALENDAR_FORBIDDEN;
-    }
-
-    private String firstGoogleErrorReason(GoogleJsonResponseException exception) {
-        if (exception.getDetails() == null || exception.getDetails().getErrors() == null
-                || exception.getDetails().getErrors().isEmpty()) {
-            return null;
-        }
-        return exception.getDetails().getErrors().get(0).getReason();
     }
 
     private boolean isRateLimited(GoogleJsonResponseException exception) {

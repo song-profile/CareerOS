@@ -4,6 +4,8 @@ export const GOOGLE_OAUTH_START_PATH_ENV_KEY = "NEXT_PUBLIC_GOOGLE_OAUTH_START_P
 
 const DEFAULT_GOOGLE_OAUTH_START_PATH = "/oauth2/authorization/google";
 
+// process.env는 반드시 정적 접근으로 쓴다. NEXT_PUBLIC_* 치환은 빌드 시점 문자열
+// 치환이라, process.env[변수] 형태는 클라이언트 번들에서 undefined가 된다.
 export function getApiBaseUrl(): string {
   const value = getRuntimeApiBaseUrl();
 

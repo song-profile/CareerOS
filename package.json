@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "check:messages": "node --experimental-transform-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-api-error-messages.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {

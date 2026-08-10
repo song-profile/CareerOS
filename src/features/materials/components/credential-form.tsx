@@ -14,7 +14,12 @@ import {
   hasCredentialFormErrors,
   validateCredentialForm,
 } from "@/features/materials/form-validation";
-import { saveCredential } from "@/features/materials/materials-service";
+import {
+  createCredential,
+  updateCredential,
+} from "@/features/materials/api/credential-api";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { reloadAfterMutation } from "@/lib/api/mutation";
 import {
   CREDENTIAL_DESCRIPTION_MAX_LENGTH,
   CREDENTIAL_MEMO_MAX_LENGTH,
@@ -83,19 +88,20 @@ export function CredentialForm({ credentialId, initialValues, mode }: Credential
     }
 
     setSaving(true);
-    const result = await saveCredential(credentialId ?? null, values);
-    setSaving(false);
 
-    if (!result.ok) {
+    try {
+      const saved = mode === "create"
+        ? await createCredential(values)
+        : await updateCredential(credentialId ?? "", values);
+
+      setMessage(mode === "create" ? "자격 정보를 등록했습니다." : "수정 내용을 저장했습니다.");
+      reloadAfterMutation(router, `/materials/credentials/${saved.id}`);
+    } catch (error) {
       // 실패해도 입력값은 그대로 둔다.
       setFailed(true);
-      setMessage(result.message);
-      return;
+      setMessage(getApiErrorMessage(error, `자격 정보를 ${mode === "create" ? "등록" : "수정"}`));
+      setSaving(false);
     }
-
-    setMessage(mode === "create" ? "자격 정보를 저장했습니다." : "수정 내용을 저장했습니다.");
-    router.push(`/materials/credentials/${result.value.id}`);
-    router.refresh();
   }
 
   return (
@@ -140,7 +146,11 @@ export function CredentialForm({ credentialId, initialValues, mode }: Credential
               value={values.acquiredAt}
             />
             <Input
-              helperText="저장 후에는 목록과 상세에서 가려진 상태로 표시됩니다."
+              helperText={
+                mode === "edit"
+                  ? "저장하면 이 칸의 값으로 교체됩니다. 비우면 등록된 자격번호가 삭제됩니다."
+                  : "저장 후에는 목록과 상세에서 가려진 상태로 표시됩니다."
+              }
               label="자격번호"
               onChange={(event) => updateValue("credentialNumber", event.target.value)}
               value={values.credentialNumber}

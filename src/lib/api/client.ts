@@ -37,7 +37,7 @@ function appendQueryParams(url: URL, query: ApiQueryParams) {
   });
 }
 
-async function parseResponseBody(response: Response): Promise<unknown> {
+export async function parseResponseBody(response: Response): Promise<unknown> {
   if (response.status === 204) {
     return undefined;
   }

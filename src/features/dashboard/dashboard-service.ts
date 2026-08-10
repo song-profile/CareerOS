@@ -1,7 +1,7 @@
-import { cookies } from "next/headers";
 import { createApiUrl } from "@/lib/api/client";
 import { getServerResultErrorMessage } from "@/lib/api/error-message";
 import { apiEndpoints } from "@/lib/api/endpoints";
+import { createServerCookieHeader } from "@/lib/api/server-cookie";
 import type { DashboardSummaryDto } from "@/features/dashboard/api/dto";
 import { toDashboardData } from "@/features/dashboard/api/mapper";
 import type { DashboardData } from "@/features/dashboard/types";
@@ -34,13 +34,4 @@ export async function getDashboardSummary(): Promise<DashboardResult<DashboardDa
   } catch {
     return { ok: false, message: "네트워크 연결을 확인한 뒤 다시 시도해 주세요." };
   }
-}
-
-async function createServerCookieHeader(): Promise<string> {
-  const cookieStore = await cookies();
-
-  return cookieStore
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join("; ");
 }

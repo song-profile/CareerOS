@@ -3,7 +3,7 @@ import { getCalendarEvent, getCalendarEvents } from "@/features/calendar/calenda
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({
-    getAll: () => [{ name: "JSESSIONID", value: "session-id" }],
+    get: (name: string) => (name === "JSESSIONID" ? { name, value: "session-id" } : undefined),
   })),
 }));
 

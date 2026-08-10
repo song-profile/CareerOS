@@ -5,9 +5,7 @@ import { LinkButton } from "@/components/ui/link-button";
 import { CredentialDeleteButton } from "@/features/materials/components/credential-delete-button";
 import { CredentialNumberField } from "@/features/materials/components/credential-number-field";
 import { CredentialValidityBadge } from "@/features/materials/components/credential-validity-badge";
-import {
-  formatCredentialDate,
-} from "@/features/materials/credential-utils";
+import { formatCredentialDate } from "@/features/materials/credential-utils";
 import type { CredentialDetail } from "@/features/materials/types";
 
 function MemoSection({ body, description, title }: { title: string; description: string; body: string }) {
@@ -97,7 +95,7 @@ export function CredentialDetailView({ credential }: CredentialDetailViewProps) 
               <CredentialNumberField
                 credentialId={credential.id}
                 hasCredentialNumber={credential.hasCredentialNumber}
-                maskedValue={credential.credentialNumber}
+                maskedValue={credential.credentialNumberMasked}
               />
               {credential.score ? <CopyField label="점수" mono value={credential.score} /> : null}
               {credential.grade ? <CopyField label="등급" value={credential.grade} /> : null}

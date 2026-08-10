@@ -1,6 +1,8 @@
 import type { CalendarEvent } from "@/features/calendar/types";
+import { getDaysUntil, getDDayLabel as getSharedDDayLabel } from "@/lib/utils/date";
 
-const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+export { getDaysUntil } from "@/lib/utils/date";
+
 const MONTH_GRID_DAYS = 42;
 
 export interface CalendarMonthDay {
@@ -73,24 +75,8 @@ export function isSameDate(left: Date, right: Date): boolean {
   return toDateKey(left) === toDateKey(right);
 }
 
-export function getDaysUntil(targetDate: Date, baseDate: Date = new Date()): number {
-  const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
-  const end = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-  return Math.ceil((end.getTime() - start.getTime()) / MILLISECONDS_PER_DAY);
-}
-
 export function getDDayLabel(date: Date, baseDate: Date = new Date()): string {
-  const days = getDaysUntil(date, baseDate);
-
-  if (days < 0) {
-    return "종료";
-  }
-
-  if (days === 0) {
-    return "오늘";
-  }
-
-  return `D-${days}`;
+  return getSharedDDayLabel(getDaysUntil(date, baseDate));
 }
 
 export function formatMonthTitle(date: Date): string {
