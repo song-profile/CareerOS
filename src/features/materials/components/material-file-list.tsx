@@ -28,6 +28,7 @@ import type {
   MaterialFileType,
   MaterialFileTypeFilter,
 } from "@/features/materials/types";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 export interface MaterialFileListProps {
   files: MaterialFile[];
@@ -69,8 +70,8 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
       anchor.click();
       URL.revokeObjectURL(url);
       showNotice("파일 다운로드를 시작했습니다.", "success");
-    } catch {
-      showNotice("파일 다운로드에 실패했습니다.", "error");
+    } catch (error) {
+      showNotice(getApiErrorMessage(error, "파일을 다운로드"), "error");
     }
   }
 
@@ -85,8 +86,8 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
       setPreviewFile(uploaded);
       showNotice("파일을 업로드했습니다.", "success");
       return true;
-    } catch {
-      showNotice("파일 업로드에 실패했습니다.", "error");
+    } catch (error) {
+      showNotice(getApiErrorMessage(error, "파일을 업로드"), "error");
       return false;
     }
   }
@@ -98,9 +99,9 @@ export function MaterialFileList({ files }: MaterialFileListProps) {
       setPreviewFile((current) => current?.id === file.id ? null : current);
       setDeleteTarget(null);
       showNotice("파일을 삭제했습니다.", "success");
-    } catch {
+    } catch (error) {
       setDeleteTarget(null);
-      showNotice("파일 삭제에 실패했습니다.", "error");
+      showNotice(getApiErrorMessage(error, "파일을 삭제"), "error");
     }
   }
 
