@@ -156,6 +156,25 @@ class ApplicationControllerTest {
         mockMvc.perform(get("/api/applications/{id}", applicationId).with(authentication(auth(secondUser))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+
+        mockMvc.perform(patch("/api/applications/{id}", applicationId)
+                        .with(authentication(auth(secondUser)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateRequest("가로채기", "가로채기")))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(patch("/api/applications/{id}/status", applicationId)
+                        .with(authentication(auth(secondUser)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"SUBMITTED"}
+                                """))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/applications/{id}", applicationId).with(authentication(auth(secondUser))))
+                .andExpect(status().isNotFound());
+
+        assertThat(applicationRepository.findById(applicationId)).isPresent();
     }
 
     @Test

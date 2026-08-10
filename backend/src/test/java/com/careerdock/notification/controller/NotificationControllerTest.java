@@ -115,6 +115,18 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
+    @Test
+    void blocksMarkingOtherUsersNotificationRead() throws Exception {
+        long notificationId = create(owner, "본인 알림", "read-block-1");
+
+        mockMvc.perform(patch("/api/notifications/{id}/read", notificationId).with(authentication(auth(otherUser))))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/notifications/unread-count").with(authentication(auth(owner))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unreadCount").value(1));
+    }
+
     private long create(User user, String title, String dedupeKey) {
         notificationService.createIfAbsent(
                 user.getId(),

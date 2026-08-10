@@ -163,11 +163,28 @@ class EssayControllerTest {
         long answerId = createAnswer(questionId, "초안");
         long tagId = createTag("LOODI");
 
+        mockMvc.perform(get("/api/applications/{applicationId}/essay-questions", firstApplication.getId())
+                        .with(authentication(auth(secondUser))))
+                .andExpect(status().isNotFound());
+
         mockMvc.perform(post("/api/essay-questions/{questionId}/answers", questionId)
                         .with(authentication(auth(secondUser)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"content":"침범"}
+                                """))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(patch("/api/essay-questions/{id}", questionId)
+                        .with(authentication(auth(secondUser)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "questionOrder":1,
+                                  "questionText":"가로채기",
+                                  "characterLimit":700,
+                                  "commonQuestionType":"MOTIVATION"
+                                }
                                 """))
                 .andExpect(status().isNotFound());
 
@@ -179,6 +196,26 @@ class EssayControllerTest {
                                 """))
                 .andExpect(status().isNotFound());
 
+        mockMvc.perform(post("/api/essay-answers/{id}/submit-lock", answerId)
+                        .with(authentication(auth(secondUser)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"content":"침범"}
+                                """))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/api/essay-answers/{id}/versions", answerId)
+                        .with(authentication(auth(secondUser)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"content":"침범"}
+                                """))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/essay-answers/{id}/versions", answerId)
+                        .with(authentication(auth(secondUser))))
+                .andExpect(status().isNotFound());
+
         mockMvc.perform(post("/api/essay-answers/{id}/tags", answerId)
                         .with(authentication(auth(secondUser)))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -186,6 +223,13 @@ class EssayControllerTest {
                                 {"tagId":%d}
                                 """.formatted(tagId)))
                 .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/essay-answers/{id}/tags/{tagId}", answerId, tagId)
+                        .with(authentication(auth(secondUser))))
+                .andExpect(status().isNotFound());
+
+        assertThat(questionRepository.findById(questionId)).get()
+                .satisfies(question -> assertThat(question.getQuestionText()).isEqualTo("지원동기를 쓰세요."));
     }
 
     private Application createApplication(User user, String companyName, String positionName) {

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -166,7 +167,24 @@ class CredentialControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
 
+        mockMvc.perform(patch("/api/credentials/{id}", credentialId)
+                        .with(authentication(auth(otherUser)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "credentialType":"CERTIFICATION",
+                                  "name":"가로채기",
+                                  "acquiredAt":"2024-05-01",
+                                  "permanent":true
+                                }
+                                """))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/credentials/{id}", credentialId).with(authentication(auth(otherUser))))
+                .andExpect(status().isNotFound());
+
         assertThat(auditRepository.count()).isZero();
+        assertThat(credentialRepository.count()).isEqualTo(1);
     }
 
     @Test
