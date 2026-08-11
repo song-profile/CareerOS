@@ -8,12 +8,12 @@ vi.mock("@/features/auth/api/oauth-api", () => ({
 }));
 
 describe("LoginForm", () => {
-  it("renders Google-only authentication copy", () => {
+  it("renders Google authentication without extra login method copy", () => {
     render(<LoginForm />);
 
     expect(screen.getByRole("button", { name: "Google 계정으로 시작하기" })).toBeEnabled();
-    expect(screen.getByText("처음 로그인하면 CareerDock 계정이 자동으로 생성됩니다.")).toBeInTheDocument();
-    expect(screen.getByText("CareerDock은 Google 계정으로만 로그인합니다.")).toBeInTheDocument();
+    expect(screen.queryByText("처음 로그인하면 CareerDock 계정이 자동으로 생성됩니다.")).not.toBeInTheDocument();
+    expect(screen.queryByText("CareerDock은 Google 계정으로만 로그인합니다.")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("이메일")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("비밀번호")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "회원가입" })).not.toBeInTheDocument();

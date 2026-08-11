@@ -26,8 +26,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <AuthLayout
-      description="Google 계정으로 로그인하면 지원 자료와 일정이 CareerDock 계정에 연결됩니다."
-      title="Google 계정으로 시작하기"
+      description="Google 계정으로 바로 시작하세요."
+      title="로그인"
     >
       <LoginForm
         initialMessage={loggedOut ? "로그아웃되었습니다." : undefined}
