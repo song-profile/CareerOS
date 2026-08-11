@@ -1,7 +1,6 @@
 import {
   addEssayAnswerTag,
   createImprovedEssayVersion,
-  fetchEssayVersions,
   fetchExperienceTags,
   removeEssayAnswerTag,
 } from "@/features/essays/api/essay-api";
@@ -13,55 +12,22 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import type {
   CreateEssayVersionPayload,
   EssayAnswerVersion,
-  EssayVersionComparison,
   EssayVersionResult,
   UpdateEssayTagsPayload,
 } from "@/features/essays/version-types";
 
 /**
- * 버전과 태그의 데이터 접근 지점.
+ * 버전과 태그를 바꾸는 클라이언트 쪽 진입점.
  *
- * 전부 목 구현이며 실제 네트워크 호출을 하지 않는다. API 연동 시 이 파일의 함수 본문만
- * 교체하면 되고 화면 코드는 그대로 둔다. 기획서 API 명세 기준 교체 대상은 다음과 같다.
+ * 조회는 서버 컴포넌트가 server-essay-api의 fetchEssayVersionsForCurrentUser로 처리하므로
+ * 여기에는 두지 않는다. 이 파일은 사용자의 조작으로 상태가 바뀌는 경우만 담당한다.
  *
- * - getEssayVersions      -> GET  /api/essay-answers/{id}/versions
- * - createEssayVersion    -> POST /api/essay-answers/{id}/versions
- * - getEssayVersion       -> GET  /api/essay-answers/{id}
- * - updateEssayTags       -> PATCH 태그 연결 (명세 미정, 백엔드 확정 필요)
- * - compareEssayVersions  -> 두 버전 조회 조합 (전용 endpoint 없음)
+ * - createEssayVersion -> POST /api/essay-answers/{id}/versions
+ * - updateEssayTags    -> POST/DELETE 태그 연결
  *
- * 태그는 API에서 이름이 아니라 id로 오갈 가능성이 높다. 이름↔id 변환은 이 파일 안에서 흡수한다.
+ * 태그는 API에서 이름이 아니라 id로 오간다. 이름↔id 변환은 이 파일 안에서 흡수한다.
  * 자소서 본문은 민감 정보이므로 어떤 함수도 내용을 로그로 남기지 않는다.
  */
-
-export async function getEssayVersions(
-  answerGroupId: string,
-): Promise<EssayVersionResult<EssayAnswerVersion[]>> {
-  try {
-    const versions = await fetchEssayVersions(answerGroupId);
-    return {
-      ok: true,
-      value: versions.map((version) => withAnswerGroupId(toEssayAnswerVersion(version), answerGroupId)),
-    };
-  } catch (error) {
-    return { ok: false, message: getApiErrorMessage(error, "버전 목록을 조회") };
-  }
-}
-
-export async function getEssayVersion(
-  versionId: string,
-): Promise<EssayVersionResult<EssayAnswerVersion>> {
-  const versions = await getEssayVersions(versionId);
-
-  if (!versions.ok) {
-    return versions;
-  }
-
-  const version = versions.value.find((candidate) => candidate.versionId === versionId);
-  return version
-    ? { ok: true, value: version }
-    : { ok: false, message: "해당 버전을 찾을 수 없습니다." };
-}
 
 /**
  * 새 버전을 만든다. 기준 버전은 절대 수정하지 않고 항상 새 버전을 덧붙인다.
@@ -157,26 +123,4 @@ export async function updateEssayTags(
   } catch (error) {
     return { ok: false, message: getApiErrorMessage(error, "태그를 변경") };
   }
-}
-
-export async function compareEssayVersions(
-  leftVersionId: string,
-  rightVersionId: string,
-): Promise<EssayVersionResult<EssayVersionComparison>> {
-  if (leftVersionId === rightVersionId) {
-    return { ok: false, message: "서로 다른 두 버전을 선택해 주세요." };
-  }
-
-  const versions = await getEssayVersions(leftVersionId);
-
-  if (!versions.ok) {
-    return versions;
-  }
-
-  const left = versions.value.find((version) => version.versionId === leftVersionId);
-  const right = versions.value.find((version) => version.versionId === rightVersionId);
-
-  return left && right
-    ? { ok: true, value: { left, right } }
-    : { ok: false, message: "비교할 버전을 찾을 수 없습니다." };
 }

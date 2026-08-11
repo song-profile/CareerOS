@@ -28,18 +28,21 @@ function makeVersion(overrides: Partial<EssayAnswerVersion> = {}): EssayAnswerVe
   };
 }
 
+const CHANGED_BEFORE = "이 경험을 통해 협업의 중요성을 배웠습니다.";
+const CHANGED_AFTER = "이 경험을 통해 협업과 갈등 조정의 중요성을 배웠습니다.";
+
 const LEFT_CONTENT = [
   "저는 책임감을 최우선으로 생각합니다.",
   "이 문장은 다음 버전에서 사라집니다.",
   "협업을 통해 문제를 해결한 경험이 있습니다.",
-  "이전에는 이렇게 표현했습니다.",
+  CHANGED_BEFORE,
   "앞으로도 계속 성장하겠습니다.",
 ].join("\n\n");
 
 const RIGHT_CONTENT = [
   "저는 책임감을 최우선으로 생각합니다.",
   "협업을 통해 문제를 해결한 경험이 있습니다.",
-  "지금은 이렇게 고쳐 썼습니다.",
+  CHANGED_AFTER,
   "앞으로도 계속 성장하겠습니다.",
   "새로 추가한 문장입니다.",
 ].join("\n\n");
@@ -83,8 +86,8 @@ describe("EssayVersionCompare", () => {
     expect(screen.getByText("+ 추가됨")).toBeInTheDocument();
 
     // 수정된 문단: 이전 텍스트와 새 텍스트가 함께 보인다.
-    expect(screen.getAllByText("이전에는 이렇게 표현했습니다.").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("지금은 이렇게 고쳐 썼습니다.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(CHANGED_BEFORE).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(CHANGED_AFTER).length).toBeGreaterThan(0);
     expect(screen.getAllByText("± 수정됨").length).toBeGreaterThan(0);
 
     const delta = right.characterCount - left.characterCount;

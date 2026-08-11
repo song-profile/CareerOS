@@ -99,6 +99,42 @@ describe("diffEssayParagraphs", () => {
     expect(diffEssayParagraphs(content, content)).toHaveLength(2);
   });
 
+  it("서로 무관한 문단이 같은 자리에서 바뀌면 수정이 아니라 삭제와 추가로 나눈다", () => {
+    const left = "동아리에서 회계를 맡아 예산을 관리했습니다.";
+    const right = "주말마다 등산을 다니며 체력을 길렀습니다.";
+
+    expect(diffEssayParagraphs(left, right)).toEqual([
+      { change: "removed", text: left },
+      { change: "added", text: right },
+    ]);
+  });
+
+  it("한 덩어리 안에서 순서가 어긋나도 실제로 닮은 문단끼리 수정으로 짝짓는다", () => {
+    const left = ["완전히 사라질 문단입니다.", "저는 책임감이 강합니다."].join("\n\n");
+    const right = "저는 책임감과 협업 능력이 모두 강합니다.";
+
+    // 순서대로 짝지으면 "완전히 사라질 문단"과 새 문단이 수정으로 묶인다.
+    expect(diffEssayParagraphs(left, right)).toEqual([
+      { change: "removed", text: "완전히 사라질 문단입니다." },
+      {
+        change: "changed",
+        text: "저는 책임감이 강합니다.",
+        nextText: "저는 책임감과 협업 능력이 모두 강합니다.",
+      },
+    ]);
+  });
+
+  it("하나의 추가 문단이 두 삭제 문단에 중복으로 짝지어지지 않는다", () => {
+    const left = ["저는 책임감이 강합니다.", "저는 책임감이 강합니다. 정말로."].join("\n\n");
+    const right = "저는 책임감이 아주 강합니다.";
+
+    const blocks = diffEssayParagraphs(left, right);
+
+    expect(blocks.filter((block) => block.change === "changed")).toHaveLength(1);
+    expect(blocks.filter((block) => block.change === "removed")).toHaveLength(1);
+    expect(blocks.filter((block) => block.change === "added")).toHaveLength(0);
+  });
+
   it("긴 자소서에서도 가운데 문단 하나의 수정만 정확히 잡아낸다", () => {
     const paragraphs = Array.from({ length: 30 }, (_, index) => `${index + 1}번째 문단입니다.`);
     const left = paragraphs.join("\n\n");

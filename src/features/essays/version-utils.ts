@@ -147,7 +147,55 @@ function alignParagraphs(left: string[], right: string[]): ParagraphOp[] {
   return ops;
 }
 
-/** 연달아 나오는 삭제+추가 묶음은 등장 순서대로 짝지어 "changed"(수정)로 합친다. */
+/**
+ * 두 문단이 얼마나 겹치는지 0~1로 재는 값.
+ *
+ * 문단을 고쳐 쓰면 앞뒤는 그대로 두고 가운데만 바뀌는 경우가 대부분이라, 공통 앞부분과
+ * 공통 뒷부분의 길이 비율만 본다. 편집 거리보다 훨씬 싸고(선형) 긴 자소서에서도 부담이 없다.
+ * 대신 문단 중간만 같고 앞뒤가 다른 경우는 낮게 나온다 — 그때는 수정이 아니라
+ * 삭제+추가로 따로 보여주므로 틀린 정보를 주지는 않는다.
+ */
+function getOverlapRatio(before: string, after: string): number {
+  if (before === after) {
+    return 1;
+  }
+
+  const longest = Math.max(before.length, after.length);
+
+  if (longest === 0) {
+    return 1;
+  }
+
+  const shortest = Math.min(before.length, after.length);
+
+  let prefix = 0;
+  while (prefix < shortest && before[prefix] === after[prefix]) {
+    prefix++;
+  }
+
+  // 앞부분으로 이미 센 글자를 뒷부분에서 또 세지 않도록 남은 길이까지만 본다.
+  let suffix = 0;
+  while (
+    suffix < shortest - prefix &&
+    before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+  ) {
+    suffix++;
+  }
+
+  return (prefix + suffix) / longest;
+}
+
+/** 이 정도는 겹쳐야 "같은 문단을 고쳐 썼다"고 본다. */
+const CHANGED_PAIR_MIN_OVERLAP = 0.4;
+
+/**
+ * 연달아 나오는 삭제+추가 묶음에서 실제로 닮은 것끼리만 "changed"(수정)로 합친다.
+ *
+ * 삭제된 문단마다 아직 짝이 없는 추가 문단 중 가장 많이 겹치는 것을 고르고, 그 정도가
+ * 기준에 못 미치면 짝짓지 않고 삭제와 추가로 따로 남긴다. 순서대로만 짝지으면 서로 무관한
+ * 문단이 수정으로 묶여 오히려 읽기 어려워진다. 한 묶음의 크기는 보통 몇 개라 O(n²)이어도
+ * 문제되지 않는다.
+ */
 function pairAdjacentChanges(ops: ParagraphOp[]): ParagraphDiffBlock[] {
   const blocks: ParagraphDiffBlock[] = [];
   let i = 0;
@@ -174,17 +222,39 @@ function pairAdjacentChanges(ops: ParagraphOp[]): ParagraphDiffBlock[] {
       i++;
     }
 
-    const pairCount = Math.min(deletes.length, inserts.length);
+    const pairedInserts = new Set<number>();
 
-    for (let k = 0; k < pairCount; k++) {
-      blocks.push({ change: "changed", text: deletes[k], nextText: inserts[k] });
+    for (const before of deletes) {
+      let bestIndex = -1;
+      let bestOverlap = CHANGED_PAIR_MIN_OVERLAP;
+
+      for (let k = 0; k < inserts.length; k++) {
+        if (pairedInserts.has(k)) {
+          continue;
+        }
+
+        const overlap = getOverlapRatio(before, inserts[k]);
+
+        if (overlap >= bestOverlap) {
+          bestOverlap = overlap;
+          bestIndex = k;
+        }
+      }
+
+      if (bestIndex === -1) {
+        blocks.push({ change: "removed", text: before });
+        continue;
+      }
+
+      pairedInserts.add(bestIndex);
+      blocks.push({ change: "changed", text: before, nextText: inserts[bestIndex] });
     }
-    for (let k = pairCount; k < deletes.length; k++) {
-      blocks.push({ change: "removed", text: deletes[k] });
-    }
-    for (let k = pairCount; k < inserts.length; k++) {
-      blocks.push({ change: "added", text: inserts[k] });
-    }
+
+    inserts.forEach((after, index) => {
+      if (!pairedInserts.has(index)) {
+        blocks.push({ change: "added", text: after });
+      }
+    });
   }
 
   return blocks;
@@ -193,9 +263,9 @@ function pairAdjacentChanges(ops: ParagraphOp[]): ParagraphDiffBlock[] {
 /**
  * 문단 단위 diff.
  *
- * 문자 단위가 아니라 문단(빈 줄로 구분) 단위로 비교한다. 문단 안에서 한 글자만 바뀌어도
- * 그 문단 전체가 changed로 표시되고, 문단 순서만 바뀐 경우에도 changed/added/removed로
- * 나타날 수 있다. 모바일 Inline Diff와 데스크톱 좌우 비교가 이 함수 하나를 공유한다.
+ * 문자 단위가 아니라 문단(빈 줄로 구분) 단위로 비교하므로, 문단 안에서 한 글자만 바뀌어도
+ * 그 문단 전체가 changed로 표시된다. 문단 안 어디가 바뀌었는지까지는 알려주지 않는다.
+ * 모바일 Inline Diff와 데스크톱 좌우 비교가 이 함수 하나를 공유한다.
  */
 export function diffEssayParagraphs(
   leftContent: string,

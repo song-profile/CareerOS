@@ -46,11 +46,6 @@ export interface CreateEssayVersionPayload {
   copyContent: boolean;
 }
 
-export interface EssayVersionComparison {
-  left: EssayAnswerVersion;
-  right: EssayAnswerVersion;
-}
-
 export interface EssayTagSelection {
   experienceTags: string[];
   competencyTags: string[];
