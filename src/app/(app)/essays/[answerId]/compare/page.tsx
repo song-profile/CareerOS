@@ -9,7 +9,7 @@ import {
   fetchEssayAnswerForCurrentUser,
   fetchEssayVersionsForCurrentUser,
 } from "@/features/essays/api/server-essay-api";
-import { getDefaultComparePair } from "@/features/essays/version-utils";
+import { getDefaultComparePair, resolveVersionOrDefault } from "@/features/essays/version-utils";
 
 interface ComparePageProps {
   params: Promise<{ answerId: string }>;
@@ -60,8 +60,8 @@ export default async function EssayVersionComparePage({
   }
 
   const { left: leftParam, right: rightParam } = await searchParams;
-  const left = versions.find((version) => version.versionId === leftParam) ?? defaultPair.left;
-  const right = versions.find((version) => version.versionId === rightParam) ?? defaultPair.right;
+  const left = resolveVersionOrDefault(versions, leftParam, defaultPair.left);
+  const right = resolveVersionOrDefault(versions, rightParam, defaultPair.right);
 
   return (
     <>

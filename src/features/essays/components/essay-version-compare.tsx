@@ -6,8 +6,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LinkButton } from "@/components/ui/link-button";
 import { Select } from "@/components/ui/select";
 import { ESSAY_ANSWER_STATUS_VARIANT } from "@/features/essays/constants";
-import { compareParagraphs, sortVersionsLatestFirst } from "@/features/essays/version-utils";
-import type { ComparedParagraph } from "@/features/essays/version-utils";
+import {
+  compareParagraphs,
+  diffEssayParagraphs,
+  sortVersionsLatestFirst,
+} from "@/features/essays/version-utils";
+import type { ComparedParagraph, ParagraphDiffBlock } from "@/features/essays/version-utils";
 import type { EssayAnswerVersion } from "@/features/essays/version-types";
 import { cn } from "@/lib/utils/cn";
 
@@ -23,13 +27,44 @@ const changeClassName: Record<ComparedParagraph["change"], string> = {
   same: "border-transparent",
   added: "border-success-600 bg-success-50",
   removed: "border-danger-600 bg-danger-50",
+  changed: "border-amber-600 bg-amber-50",
 };
 
 const changeLabel: Record<ComparedParagraph["change"], string> = {
   same: "",
-  added: "이 버전에만 있음",
-  removed: "이 버전에만 있음",
+  added: "+ 이 버전에만 있음",
+  removed: "− 이 버전에만 있음",
+  changed: "± 수정됨",
 };
+
+interface VersionMetaProps {
+  version: EssayAnswerVersion;
+  headingId?: string;
+  side: string;
+}
+
+function VersionMeta({ headingId, side, version }: VersionMetaProps) {
+  return (
+    <div className="grid gap-1.5">
+      <p className="text-caption text-neutral-400">{side}</p>
+      <h2 className="flex flex-wrap items-center gap-1.5 text-h3 text-neutral-900" id={headingId}>
+        <span className="font-mono text-mono">v{version.versionNumber}</span>
+        <Badge variant={ESSAY_ANSWER_STATUS_VARIANT[version.answerStatus]}>
+          {version.answerStatus}
+        </Badge>
+        {version.isLocked ? <Badge>잠금</Badge> : null}
+      </h2>
+      <p className="text-caption text-neutral-600">
+        {version.submittedAt
+          ? `${formatVersionDate(version.submittedAt)} 제출`
+          : formatVersionDate(version.createdAt)}
+        {" · "}
+        {version.characterCount.toLocaleString("ko-KR")}자
+      </p>
+      <p className="text-caption text-neutral-400">{version.createdReason}</p>
+    </div>
+  );
+}
 
 interface VersionColumnProps {
   version: EssayAnswerVersion;
@@ -38,29 +73,13 @@ interface VersionColumnProps {
   side: string;
 }
 
+/** 데스크톱 좌우 비교용 열 하나. 문단별로 자기 쪽 변경만 표시한다. */
 function VersionColumn({ headingId, paragraphs, side, version }: VersionColumnProps) {
   return (
     <Card>
       <CardContent>
         <div className="grid gap-3">
-          <div className="grid gap-1.5">
-            <p className="text-caption text-neutral-400">{side}</p>
-            <h2 className="flex flex-wrap items-center gap-1.5 text-h3 text-neutral-900" id={headingId}>
-              <span className="font-mono text-mono">v{version.versionNumber}</span>
-              <Badge variant={ESSAY_ANSWER_STATUS_VARIANT[version.answerStatus]}>
-                {version.answerStatus}
-              </Badge>
-              {version.isLocked ? <Badge>잠금</Badge> : null}
-            </h2>
-            <p className="text-caption text-neutral-600">
-              {version.submittedAt
-                ? `${formatVersionDate(version.submittedAt)} 제출`
-                : formatVersionDate(version.createdAt)}
-              {" · "}
-              {version.characterCount.toLocaleString("ko-KR")}자
-            </p>
-            <p className="text-caption text-neutral-400">{version.createdReason}</p>
-          </div>
+          <VersionMeta headingId={headingId} side={side} version={version} />
 
           <div className="grid gap-2 border-t border-neutral-200 pt-3">
             {paragraphs.map((paragraph, index) => (
@@ -94,6 +113,70 @@ function VersionColumn({ headingId, paragraphs, side, version }: VersionColumnPr
   );
 }
 
+const inlineBlockClassName: Record<ParagraphDiffBlock["change"], string> = {
+  same: "",
+  added: "rounded-card border-l-4 border-success-600 bg-success-50 py-1 pl-3",
+  removed: "rounded-card border-l-4 border-danger-600 bg-danger-50 py-1 pl-3",
+  changed: "rounded-card border-l-4 border-amber-600 bg-amber-50 py-1 pl-3",
+};
+
+const inlineBlockLabel: Record<ParagraphDiffBlock["change"], string> = {
+  same: "",
+  added: "+ 추가됨",
+  removed: "− 삭제됨",
+  changed: "± 수정됨",
+};
+
+/**
+ * 모바일 Inline Diff. 두 버전 본문을 한 번만 훑도록 하나의 흐름으로 합쳐 보여준다.
+ * changed 문단은 이전 텍스트(취소선)와 새 텍스트를 함께 보여준다.
+ */
+function InlineDiffList({ blocks }: { blocks: ParagraphDiffBlock[] }) {
+  return (
+    <ul className="grid gap-2">
+      {blocks.map((block, index) => (
+        <li
+          className={inlineBlockClassName[block.change]}
+          key={`${index}-${block.text.slice(0, 12)}`}
+        >
+          {block.change === "same" ? (
+            <p className="whitespace-pre-wrap text-body leading-7 text-neutral-900">{block.text}</p>
+          ) : block.change === "changed" ? (
+            <div className="grid gap-1">
+              <p className="text-caption text-amber-700">{inlineBlockLabel[block.change]}</p>
+              <p className="whitespace-pre-wrap text-body leading-7 text-neutral-500 line-through">
+                {block.text}
+              </p>
+              <p className="whitespace-pre-wrap text-body leading-7 text-neutral-900">
+                {block.nextText}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-1">
+              <p
+                className={cn(
+                  "text-caption",
+                  block.change === "added" ? "text-success-700" : "text-danger-700",
+                )}
+              >
+                {inlineBlockLabel[block.change]}
+              </p>
+              <p
+                className={cn(
+                  "whitespace-pre-wrap text-body leading-7",
+                  block.change === "removed" ? "text-neutral-500 line-through" : "text-neutral-900",
+                )}
+              >
+                {block.text}
+              </p>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 interface EssayVersionCompareProps {
   answerGroupId: string;
   versions: EssayAnswerVersion[];
@@ -109,6 +192,7 @@ export function EssayVersionCompare({
 }: EssayVersionCompareProps) {
   const router = useRouter();
   const compared = compareParagraphs(left.content, right.content);
+  const inlineBlocks = diffEssayParagraphs(left.content, right.content);
   const sorted = sortVersionsLatestFirst(versions);
   const options = sorted.map((version) => ({
     label: `v${version.versionNumber} · ${version.answerStatus}`,
@@ -158,9 +242,9 @@ export function EssayVersionCompare({
             )}
 
             <p className="text-caption text-neutral-400">
-              문단 단위로 나란히 비교합니다. 문단 안에서 한 글자만 바뀌어도 문단 전체가 변경으로
-              표시되고, 문단 순서만 바뀐 경우에도 양쪽 모두 변경으로 표시됩니다. 문자 단위 비교는
-              제공하지 않습니다.
+              문단 단위로 비교합니다. 추가·삭제·수정된 문단을 색상과 함께 +/− 표시와 글자 라벨로
+              구분해 보여주고, 문단 안의 문자 단위 비교는 제공하지 않습니다. 데스크톱은 좌우 비교,
+              모바일은 한 화면에서 훑어볼 수 있는 Inline Diff를 보여줍니다.
             </p>
 
             <LinkButton
@@ -175,7 +259,7 @@ export function EssayVersionCompare({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="hidden gap-4 lg:grid lg:grid-cols-2">
         <VersionColumn
           headingId="compare-left"
           paragraphs={compared.left}
@@ -188,6 +272,30 @@ export function EssayVersionCompare({
           side="비교 대상"
           version={right}
         />
+      </div>
+
+      <div className="grid gap-4 lg:hidden">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Card>
+            <CardContent>
+              <VersionMeta side="이전 버전" version={left} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <VersionMeta side="비교 대상" version={right} />
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardContent>
+            <div className="grid gap-3">
+              <h2 className="text-h3 text-neutral-900">본문 비교</h2>
+              <InlineDiffList blocks={inlineBlocks} />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

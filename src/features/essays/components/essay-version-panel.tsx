@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LinkButton } from "@/components/ui/link-button";
 import { ESSAY_ANSWER_STATUS_VARIANT } from "@/features/essays/constants";
-import { getDefaultComparePair, sortVersionsLatestFirst } from "@/features/essays/version-utils";
+import {
+  getDefaultComparePair,
+  getSubmittedComparePair,
+  sortVersionsLatestFirst,
+} from "@/features/essays/version-utils";
 import type { EssayAnswerVersion } from "@/features/essays/version-types";
 import { cn } from "@/lib/utils/cn";
 
@@ -35,11 +39,15 @@ export function EssayVersionPanel({
 }: EssayVersionPanelProps) {
   const sorted = useMemo(() => sortVersionsLatestFirst(versions), [versions]);
   const comparePair = useMemo(() => getDefaultComparePair(versions), [versions]);
+  const submittedComparePair = useMemo(() => getSubmittedComparePair(versions), [versions]);
   const parentVersionNumberById = useMemo(() => {
     return new Map(versions.map((version) => [version.versionId, version.versionNumber]));
   }, [versions]);
   const compareHref = comparePair
     ? `/essays/${answerGroupId}/compare?left=${encodeURIComponent(comparePair.left.versionId)}&right=${encodeURIComponent(comparePair.right.versionId)}`
+    : null;
+  const submittedCompareHref = submittedComparePair
+    ? `/essays/${answerGroupId}/compare?left=${encodeURIComponent(submittedComparePair.left.versionId)}&right=${encodeURIComponent(submittedComparePair.right.versionId)}`
     : null;
 
   return (
@@ -108,6 +116,12 @@ export function EssayVersionPanel({
             <Button onClick={onCreateClick} size="sm" variant="secondary">
               새 버전 만들기
             </Button>
+
+            {submittedCompareHref ? (
+              <LinkButton href={submittedCompareHref} size="sm" variant="secondary">
+                제출본과 현재본 비교
+              </LinkButton>
+            ) : null}
 
             {compareHref ? (
               <LinkButton href={compareHref} size="sm" variant="ghost">

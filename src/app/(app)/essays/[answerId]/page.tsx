@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Suspense, cache } from "react";
+import { cache } from "react";
 import { PageHeader } from "@/components/layout/page-header";
-import { EssayEditorSkeleton } from "@/features/essays/components/essay-editor-states";
-import { LazyEssayEditor } from "@/features/essays/components/lazy-essay-editor";
+import { EssayEditor } from "@/features/essays/components/essay-editor";
 import { VersionPanelErrorState } from "@/features/essays/components/version-states";
 import {
   fetchEssayAnswerForCurrentUser,
@@ -56,13 +55,11 @@ export default async function EssayEditorPage({ params }: EssayEditorPageProps) 
         title="자소서 작성"
       />
       {versionsResult.ok ? (
-        <Suspense fallback={<EssayEditorSkeleton />}>
-          <LazyEssayEditor
-            answer={answerResult.value}
-            availableExperienceTags={tagsResult.ok ? tagsResult.value.map((tag) => tag.name) : []}
-            initialVersions={versionsResult.value}
-          />
-        </Suspense>
+        <EssayEditor
+          answer={answerResult.value}
+          availableExperienceTags={tagsResult.ok ? tagsResult.value.map((tag) => tag.name) : []}
+          initialVersions={versionsResult.value}
+        />
       ) : (
         <VersionPanelErrorState />
       )}
