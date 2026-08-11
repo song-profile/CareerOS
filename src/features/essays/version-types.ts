@@ -42,7 +42,6 @@ export type CreatableVersionStatus = Extract<EssayVersionStatus, "작성본" | "
 export interface CreateEssayVersionPayload {
   baseVersionId: string;
   answerStatus: CreatableVersionStatus;
-  createdReason: string;
   copyContent: boolean;
 }
 

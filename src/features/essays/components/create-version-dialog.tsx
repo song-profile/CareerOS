@@ -4,21 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { ESSAY_ANSWER_STATUS_VARIANT } from "@/features/essays/constants";
 import type {
   CreatableVersionStatus,
   EssayAnswerVersion,
 } from "@/features/essays/version-types";
 
-const MAX_REASON_LENGTH = 100;
-
 interface CreateVersionDialogProps {
   open: boolean;
   saving: boolean;
   baseVersion: EssayAnswerVersion;
   onCancel: () => void;
-  onConfirm: (input: { createdReason: string; copyContent: boolean }) => void;
+  onConfirm: (input: { copyContent: boolean }) => void;
 }
 
 export function CreateVersionDialog({
@@ -28,8 +25,7 @@ export function CreateVersionDialog({
   open,
   saving,
 }: CreateVersionDialogProps) {
-  const reasonRef = useRef<HTMLInputElement>(null);
-  const [createdReason, setCreatedReason] = useState("");
+  const copyContentRef = useRef<HTMLInputElement>(null);
   const [copyContent, setCopyContent] = useState(true);
 
   // 제출본에서 만들면 개선본, 작성본에서 만들면 새 작성본으로 고정된다.
@@ -40,12 +36,9 @@ export function CreateVersionDialog({
       return;
     }
 
-    setCreatedReason("");
     setCopyContent(true);
-    reasonRef.current?.focus();
+    copyContentRef.current?.focus();
   }, [open]);
-
-  const reasonTooLong = createdReason.length > MAX_REASON_LENGTH;
 
   return (
     <Dialog
@@ -76,11 +69,7 @@ export function CreateVersionDialog({
           <Button disabled={saving} onClick={onCancel} variant="secondary">
             취소
           </Button>
-          <Button
-            disabled={reasonTooLong}
-            loading={saving}
-            onClick={() => onConfirm({ copyContent, createdReason })}
-          >
+          <Button loading={saving} onClick={() => onConfirm({ copyContent })}>
             {nextStatus} 만들기
           </Button>
         </div>
@@ -90,27 +79,19 @@ export function CreateVersionDialog({
       title={`새 ${nextStatus} 만들기`}
     >
 
-        <Input
-          ref={reasonRef}
-          errorMessage={reasonTooLong ? `${MAX_REASON_LENGTH}자 이내로 입력해 주세요.` : undefined}
-          helperText={`선택 입력입니다. 비워두면 "이유 없음"으로 저장됩니다. (${createdReason.length}/${MAX_REASON_LENGTH})`}
-          label="생성 이유"
-          onChange={(event) => setCreatedReason(event.target.value)}
-          placeholder="예: 문항 글자 수에 맞춰 축약"
-          value={createdReason}
-        />
-
         <label className="flex items-start gap-2 text-body text-neutral-900">
           <input
             checked={copyContent}
             className="mt-0.5 h-4 w-4 rounded border-neutral-200 text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
             onChange={(event) => setCopyContent(event.target.checked)}
+            ref={copyContentRef}
             type="checkbox"
           />
           <span>
             기준 버전의 본문을 복사해서 시작
             <span className="block text-caption text-neutral-600">
-              해제하면 빈 본문으로 시작합니다. 태그 연결은 어느 쪽이든 복사됩니다.
+              해제하면 빈 본문으로 시작합니다. 경험 태그는 버전마다 따로 남으므로 새 버전에서 다시
+              연결해야 합니다.
             </span>
           </span>
         </label>

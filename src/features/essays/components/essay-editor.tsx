@@ -222,7 +222,7 @@ export function EssayEditor({ answer, availableExperienceTags, initialVersions }
     reloadAfterMutation(router);
   }
 
-  async function handleCreateVersion(input: { createdReason: string; copyContent: boolean }) {
+  async function handleCreateVersion(input: { copyContent: boolean }) {
     setCreating(true);
     setErrorMessage("");
 
@@ -231,7 +231,6 @@ export function EssayEditor({ answer, availableExperienceTags, initialVersions }
       {
         baseVersionId: selectedVersion.versionId,
         answerStatus: selectedVersion.isLocked ? "개선본" : "작성본",
-        createdReason: input.createdReason,
         copyContent: input.copyContent,
       },
       versions,

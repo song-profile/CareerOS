@@ -34,6 +34,7 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -45,6 +46,8 @@ import static org.mockito.Mockito.when;
         RestAuthenticationEntryPoint.class,
         RestAccessDeniedHandler.class
 })
+// OAuth2 client 자동설정이 google client-id를 요구한다. 더미 값은 application-test.yml에만 있다.
+@ActiveProfiles("test")
 class AuthControllerTest {
 
     @Autowired

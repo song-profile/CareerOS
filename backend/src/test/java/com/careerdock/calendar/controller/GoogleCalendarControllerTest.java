@@ -138,6 +138,47 @@ class GoogleCalendarControllerTest {
         assertThat(connectionRepository.findByUserId(owner.getId())).isEmpty();
     }
 
+    /**
+     * 주소창·기록·프리페치로 콜백 URL을 그냥 열면 code도 state도 없는 요청이 온다.
+     * 이때 진행 중이던 state까지 지우면 정작 Google이 보낸 응답이 뒤늦게 도착했을 때
+     * 연결이 실패한다. 파라미터 없는 요청은 거절만 하고 state는 건드리지 않아야 한다.
+     */
+    @Test
+    void callbackWithoutParametersKeepsPendingStateSoRealCallbackStillWorks() throws Exception {
+        when(googleOAuthService.buildAuthorizationUrl(anyString())).thenReturn("https://accounts.google.com/authorize");
+        MockHttpSession session = startConnectAndCaptureSession();
+        String state = (String) session.getAttribute(OAUTH_STATE_SESSION_KEY);
+
+        mockMvc.perform(get("/api/calendar/oauth/callback")
+                        .session(session)
+                        .with(authentication(auth(owner))))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location",
+                        "http://localhost:3000/settings/calendar?connected=false&reason=INVALID_REQUEST"));
+
+        assertThat(session.getAttribute(OAUTH_STATE_SESSION_KEY)).isEqualTo(state);
+
+        // 뒤늦게 도착한 진짜 콜백은 그대로 성공한다.
+        GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
+        tokenResponse.setAccessToken("raw-access-token");
+        tokenResponse.setRefreshToken("raw-refresh-token");
+        tokenResponse.setExpiresInSeconds(3600L);
+        when(googleOAuthService.exchangeCode("auth-code")).thenReturn(tokenResponse);
+        when(apiClient.findOrCreateCalendar(any(), any())).thenReturn("google-calendar-id-1");
+
+        mockMvc.perform(get("/api/calendar/oauth/callback")
+                        .param("code", "auth-code")
+                        .param("state", state)
+                        .session(session)
+                        .with(authentication(auth(owner))))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", "http://localhost:3000/settings/calendar?connected=true"));
+
+        assertThat(connectionRepository.findByUserId(owner.getId())).isPresent();
+        // 진짜 콜백은 state를 소모하므로 같은 응답을 재생하면 더는 통하지 않는다.
+        assertThat(session.getAttribute(OAUTH_STATE_SESSION_KEY)).isNull();
+    }
+
     @Test
     void callbackRedirectsWithSpecificReasonWhenGoogleCalendarAccessIsForbidden() throws Exception {
         when(googleOAuthService.buildAuthorizationUrl(anyString())).thenReturn("https://accounts.google.com/authorize");

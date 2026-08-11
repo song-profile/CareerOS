@@ -103,7 +103,13 @@ public class GoogleCalendarSyncService {
             HttpServletResponse response
     ) throws IOException {
         Object expectedState = session.getAttribute(OAUTH_STATE_SESSION_KEY);
-        session.removeAttribute(OAUTH_STATE_SESSION_KEY);
+        boolean fromGoogle = (code != null && !code.isBlank()) || (error != null && !error.isBlank());
+        if (fromGoogle) {
+            // state는 한 번만 쓴다. 단 Google이 실제로 보낸 응답일 때만 소모한다 —
+            // 주소창·기록·프리페치로 이 URL을 그냥 열면 파라미터가 없는 요청이 오는데,
+            // 그때도 지워버리면 진행 중이던 연결이 끊겨 사용자는 처음부터 다시 해야 한다.
+            session.removeAttribute(OAUTH_STATE_SESSION_KEY);
+        }
         if (error != null && !error.isBlank()) {
             redirectWithResult(response, false, "GOOGLE_AUTH_DENIED");
             return;
