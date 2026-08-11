@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -103,9 +104,13 @@ function Sidebar({
           className="inline-flex items-center gap-3 rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
           href="/dashboard"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-control bg-primary-600 text-body-medium text-white">
-            CD
-          </span>
+          <Image
+            alt="CareerDock"
+            className="h-9 w-9 rounded-control"
+            height={36}
+            src="/logo.jpeg"
+            width={36}
+          />
           <span className="grid">
             <span className="text-h3 text-neutral-900">CareerDock</span>
             <span className="text-caption text-neutral-400">Job workspace</span>
@@ -155,9 +160,13 @@ function MobileNavigation({
       <div className="relative flex h-full w-[min(320px,calc(100vw-32px))] flex-col border-r border-neutral-200 bg-neutral-0 shadow-xl">
         <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
           <Link className="flex items-center gap-3" href="/dashboard" onClick={onClose}>
-            <span className="flex h-9 w-9 items-center justify-center rounded-control bg-primary-600 text-body-medium text-white">
-              CD
-            </span>
+            <Image
+              alt="CareerDock"
+              className="h-9 w-9 rounded-control"
+              height={36}
+              src="/logo.jpeg"
+              width={36}
+            />
             <span className="text-h3 text-neutral-900">CareerDock</span>
           </Link>
           <Button ref={closeButtonRef} aria-label="메뉴 닫기" onClick={onClose} size="sm" variant="ghost">

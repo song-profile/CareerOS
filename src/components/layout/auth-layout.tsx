@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 interface AuthLayoutProps {
@@ -11,9 +12,13 @@ export function AuthLayout({ children, description, title }: AuthLayoutProps) {
     <main className="flex min-h-screen items-center justify-center bg-neutral-50 px-6 py-10">
       <div className="grid w-full max-w-[460px] gap-8">
         <header className="grid gap-3 text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-control bg-primary-600 text-body-medium text-white">
-            CD
-          </div>
+          <Image
+            alt="CareerDock"
+            className="mx-auto h-11 w-11 rounded-control"
+            height={44}
+            src="/logo.jpeg"
+            width={44}
+          />
           <div className="grid gap-2">
             <p className="text-h2 text-neutral-900">CareerDock</p>
             <p className="text-body text-neutral-600">
