@@ -3,7 +3,13 @@ import type {
   ApplicationSortKey,
   ApplicationStatus,
   ApplicationStatusFilter,
+  ApplicationView,
 } from "@/features/applications/types";
+
+export const APPLICATION_VIEW_OPTIONS: { label: string; value: ApplicationView }[] = [
+  { label: "목록", value: "list" },
+  { label: "칸반", value: "kanban" },
+];
 
 export const APPLICATION_STATUS_FILTERS: ApplicationStatusFilter[] = [
   "전체",

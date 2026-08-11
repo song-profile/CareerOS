@@ -6,6 +6,7 @@ import {
 import type {
   ApplicationSortKey,
   ApplicationStatusFilter,
+  ApplicationView,
   RecruitmentSeason,
 } from "@/features/applications/types";
 
@@ -14,6 +15,7 @@ export interface ApplicationListSearchState {
   keyword: string;
   status: ApplicationStatusFilter;
   sort: ApplicationSortKey;
+  view: ApplicationView;
 }
 
 export const DEFAULT_APPLICATION_SEARCH_STATE: ApplicationListSearchState = {
@@ -21,6 +23,7 @@ export const DEFAULT_APPLICATION_SEARCH_STATE: ApplicationListSearchState = {
   keyword: "",
   status: "전체",
   sort: "deadline",
+  view: "list",
 };
 
 export function parseApplicationListSearchParams(
@@ -31,6 +34,7 @@ export function parseApplicationListSearchParams(
     keyword: getSingleParam(params?.keyword) ?? "",
     status: toStatusFilter(getSingleParam(params?.status)),
     sort: toSortKey(getSingleParam(params?.sort)),
+    view: getSingleParam(params?.view) === "kanban" ? "kanban" : "list",
   };
 }
 
@@ -63,6 +67,10 @@ export function buildApplicationListHref(state: ApplicationListSearchState): str
 
   if (state.sort !== DEFAULT_APPLICATION_SEARCH_STATE.sort) {
     params.set("sort", state.sort);
+  }
+
+  if (state.view !== DEFAULT_APPLICATION_SEARCH_STATE.view) {
+    params.set("view", state.view);
   }
 
   const query = params.toString();

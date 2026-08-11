@@ -24,6 +24,7 @@ export interface ApplicationListItem {
 
 export type ApplicationStatusFilter = "전체" | "작성중" | "지원완료" | "면접" | "합격";
 export type ApplicationSortKey = "deadline" | "companyName";
+export type ApplicationView = "list" | "kanban";
 
 export interface ApplicationListState {
   searchQuery: string;
