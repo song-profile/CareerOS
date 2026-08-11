@@ -19,7 +19,7 @@ export interface ApplicationSubmittedMaterial {
   type: ApplicationMaterialType;
   title: string;
   isReady: boolean;
-  placeholderHref: string;
+  href: string;
 }
 
 export interface ApplicationEssaySummary {

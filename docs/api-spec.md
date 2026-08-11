@@ -1216,7 +1216,7 @@ S3 presigned URL은 쓰지 않는다. 업로드·다운로드 모두 백엔드�
 
 지원 건을 삭제하면 그 지원 건의 연결 행은 함께 지워진다(`ON DELETE CASCADE`). 파일·자격·외부 링크 원본은 영향받지 않는다.
 
-**다중 연결 미지원**: `POST .../files`, `.../credentials`, `.../external-links`는 한 번에 하나씩만 연결한다. 프론트 "제출자료" 섹션이 아직 목업 상태고(`application-detail.tsx`의 `ApplicationMaterialsSection`, `placeholderHref`) 여러 개를 한 번에 고르는 화면이 없어서, 배열 요청(`fileIds: [1,2,3]`) 대신 이 API의 다른 endpoint들과 같은 단일 연결 형태로 맞췄다.
+**다중 연결 미지원**: `POST .../files`, `.../credentials`, `.../external-links`는 한 번에 하나씩만 연결한다. 프론트 "제출자료" 섹션은 통합 조회 응답을 표시하지만, 여러 개를 한 번에 고르는 화면은 제공하지 않는다. 배열 요청(`fileIds: [1,2,3]`) 대신 이 API의 다른 endpoint들과 같은 단일 연결 형태로 맞췄다.
 
 ### 통합 조회
 
@@ -1523,11 +1523,11 @@ NEXT_PUBLIC_GOOGLE_OAUTH_START_PATH=/oauth2/authorization/google
 이미 `contractStatus: "confirmed"`인 것부터, 그 다음 새로 만들어야 하는 것 순서로 제안한다.
 
 1. **Auth** — 이미 연결 구조 있음(`server-auth.ts`). 세션 쿠키 왕복만 실제로 켜서 확인.
-2. **Application** — DTO/mapper 이미 완성. `ApplicationDetail.materials/checklist`, `essay.questionCount/answerCount`의 하드코딩 `[]`/`0`을 실제 API 응답으로 교체하는 작업이 이 단계의 핵심.
+2. **Application** — DTO/mapper와 주요 화면 연결이 완료되어 목록, 상세, 상태 변경, 자동 마감 일정, 제출자료 통합 조회를 실제 API로 사용한다.
 3. **Credential / External Link / File** — 실제 화면은 `credential-api.ts`/`external-link-api.ts`/`file-api.ts`를 통해 백엔드와 연결되어 있다. 남은 개선은 파일 사용처 역조회나 자격 증빙 파일명 표시처럼 보조 정보 확장이다.
-4. **Essay** — DTO/mapper 있음. 화면 연결 시 `EssayAnswerResponse` + `EssayQuestionResponse`를 합치는 로직이 필요(주석에 이미 인지돼 있음).
-5. **Calendar** — DTO/mapper가 아예 없다. 이 문서의 Calendar API 섹션을 기준으로 `calendar/api/dto.ts` + `api/mapper.ts`를 새로 작성해야 한다. Enum 값은 이미 프론트 `types.ts`와 완전히 같으므로 crosswalk 없이 그대로 매핑 가능.
-6. **Application Resources** — 9단계 신규 API라 프론트에 아직 어떤 코드도 없다. `ApplicationMaterialsSection`의 placeholder를 이 API로 교체.
+4. **Essay** — 문항, 답변, 제출 잠금, 개선 버전, 경험 태그 연결을 실제 API로 사용한다.
+5. **Calendar** — 내부 일정 CRUD와 Google Calendar 연결/상태/재동기화/연결 해제 UI를 실제 API로 사용한다.
+6. **Application Resources** — 지원 건 상세의 제출자료 섹션이 `/api/applications/{applicationId}/resources` 응답을 표시한다.
 
 ---
 

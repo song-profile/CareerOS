@@ -262,7 +262,7 @@ function ApplicationMaterialsSection({ application }: ApplicationDetailProps) {
           {application.materials.map((material) => (
             <a
               className="grid gap-2 rounded-control border border-neutral-200 bg-neutral-0 p-3 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-              href={material.placeholderHref}
+              href={material.href}
               key={material.id}
             >
               <div className="flex items-start justify-between gap-3">
@@ -272,7 +272,7 @@ function ApplicationMaterialsSection({ application }: ApplicationDetailProps) {
                 </Badge>
               </div>
               <span className="text-body text-neutral-600">{material.title}</span>
-              <span className="text-caption text-primary-600">파일 클릭 placeholder</span>
+              <span className="text-caption text-primary-600">자료 열기</span>
             </a>
           ))}
         </div>

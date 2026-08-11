@@ -2,6 +2,10 @@
 
 작성일: 2026-08-02
 
+> 이 문서는 2026-08-02 당시의 중간 감사 기록이다. 현재 릴리스 기준 구현 상태는
+> `README.md`, `docs/api-spec.md`, `docs/api-integration.md`,
+> `docs/release-checklist.md`를 기준으로 확인한다.
+
 ## 결론
 
 - Stage 13, 15, 17, 18, 19의 프론트 구현 기반은 빌드 가능한 상태다.
