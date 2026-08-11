@@ -79,6 +79,18 @@ export function GoogleCalendarSettings({
     void loadStatus();
   }, []);
 
+  /**
+   * 연결 결과는 콜백이 붙여준 쿼리에만 담겨 있어, 그대로 두면 새로고침하거나 기록으로 다시
+   * 들어올 때마다 지난 실패 문구가 되살아난다. 배너는 state로 남기고 주소만 정리한다.
+   */
+  useEffect(() => {
+    if (!callbackResult) {
+      return;
+    }
+
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [callbackResult]);
+
   async function loadStatus() {
     setLoading(true);
     setErrorMessage("");

@@ -49,6 +49,23 @@ describe("GoogleCalendarSettings", () => {
     expect(screen.getByRole("button", { name: "Calendar 연결" })).toBeEnabled();
   });
 
+  /**
+   * 실패 문구가 쿼리에 남아 있으면 새로고침·뒤로가기 때마다 지난 오류가 되살아난다.
+   * 배너는 그대로 보여주되 주소는 정리해야 한다.
+   */
+  it("shows the callback error once and clears it from the URL", async () => {
+    const replaceState = vi.fn();
+    vi.stubGlobal("history", { replaceState });
+    vi.stubGlobal("location", { pathname: "/settings/calendar" });
+
+    render(<GoogleCalendarSettings callbackReason="INVALID_REQUEST" callbackResult="failure" />);
+
+    expect(
+      await screen.findByText("연결 요청 검증에 실패했습니다. 다시 시도해 주세요."),
+    ).toBeInTheDocument();
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/settings/calendar");
+  });
+
   it("starts separate Google Calendar consent only when connect button is clicked", async () => {
     const user = userEvent.setup();
     const assign = vi.fn();

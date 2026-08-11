@@ -8,10 +8,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(HealthController.class)
 @Import(HealthControllerTestSecurityConfig.class)
+// OAuth2 client 자동설정이 google client-id를 요구한다. 더미 값은 application-test.yml에만 있다.
+@ActiveProfiles("test")
 class HealthControllerTest {
 
     @Autowired
