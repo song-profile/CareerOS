@@ -1,6 +1,7 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
-import { AuthLayout } from "@/components/layout/auth-layout";
 import { getCurrentUserFromSession } from "@/features/auth/api/server-auth";
+import { DashboardPreview } from "@/features/auth/dashboard-preview";
 import { LoginForm } from "@/features/auth/login-form";
 
 interface LoginPageProps {
@@ -25,15 +26,41 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const loggedOut = getSingleParam(params?.loggedOut);
 
   return (
-    <AuthLayout
-      description="Google 계정으로 로그인하면 지원 자료와 일정이 CareerDock 계정에 연결됩니다."
-      title="Google 계정으로 시작하기"
-    >
-      <LoginForm
-        initialMessage={loggedOut ? "로그아웃되었습니다." : undefined}
-        initialServerError={error ? loginMessages[error] ?? "로그인이 필요합니다." : undefined}
-      />
-    </AuthLayout>
+    <div className="relative h-screen overflow-hidden bg-neutral-50">
+      <DashboardPreview />
+
+      <div
+        aria-labelledby="login-gate-title"
+        aria-modal="true"
+        className="fixed inset-0 z-50 grid place-items-center bg-neutral-900/45 px-6 backdrop-blur-sm"
+        role="dialog"
+      >
+        <div className="grid w-full max-w-[400px] gap-6 rounded-modal border border-neutral-200 bg-neutral-0 p-6 text-center shadow-lg sm:p-8">
+          <div className="grid justify-items-center gap-3">
+            <Image
+              alt="CareerDock"
+              className="h-11 w-11 rounded-control"
+              height={44}
+              src="/logo.jpeg"
+              width={44}
+            />
+            <div className="grid gap-1">
+              <h1 className="text-h1 text-neutral-900" id="login-gate-title">
+                Google 계정으로 시작하기
+              </h1>
+              <p className="text-body text-neutral-600">
+                지원 자료와 일정을 한곳에서 관리하려면 먼저 로그인해 주세요.
+              </p>
+            </div>
+          </div>
+
+          <LoginForm
+            initialMessage={loggedOut ? "로그아웃되었습니다." : undefined}
+            initialServerError={error ? loginMessages[error] ?? "로그인이 필요합니다." : undefined}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
