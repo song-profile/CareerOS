@@ -20,6 +20,7 @@ import com.careerdock.dashboard.dto.DashboardSummaryResponse;
 import com.careerdock.essay.repository.EssayAnswerRepository;
 import com.careerdock.essay.repository.EssayQuestionRepository;
 import com.careerdock.global.util.TimeZoneConstants;
+import com.careerdock.notification.domain.Notification;
 import com.careerdock.notification.domain.NotificationType;
 import com.careerdock.notification.repository.NotificationRepository;
 import java.time.Duration;
@@ -27,8 +28,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -43,6 +46,9 @@ public class DashboardService {
     private static final int WEEK_EVENT_LIMIT = 12;
     private static final int PREPARATION_LIMIT = 4;
     private static final int IMPORTANT_NOTIFICATION_LIMIT = 4;
+    private static final int IMPORTANT_NOTIFICATION_CANDIDATE_LIMIT = IMPORTANT_NOTIFICATION_LIMIT * 4;
+    private static final String APPLICATION_RESOURCE_TYPE = "APPLICATION";
+    private static final String CALENDAR_EVENT_RESOURCE_TYPE = "CALENDAR_EVENT";
     private static final Duration WEEKLY_DEADLINE_WINDOW = Duration.ofDays(7);
     private static final Duration UPCOMING_EVENT_COUNT_WINDOW = Duration.ofDays(14);
     private static final List<ApplicationStatus> FINISHED_STATUSES = List.of(
@@ -154,15 +160,7 @@ public class DashboardService {
 
         DashboardGoogleCalendarResponse googleCalendar = getGoogleCalendarStatus(userId);
         List<DashboardPreparationResponse> preparationItems = getPreparationItems(userId, now);
-        List<DashboardNotificationResponse> importantNotifications = notificationRepository
-                .findDashboardImportantNotifications(
-                        userId,
-                        IMPORTANT_NOTIFICATION_TYPES,
-                        PageRequest.of(0, IMPORTANT_NOTIFICATION_LIMIT)
-                )
-                .stream()
-                .map(DashboardNotificationResponse::from)
-                .toList();
+        List<DashboardNotificationResponse> importantNotifications = getImportantNotifications(userId, now);
 
         return new DashboardSummaryResponse(
                 new DashboardCountsResponse(weeklyDeadlineCount, upcomingEventCount, draftingApplicationCount),
@@ -174,6 +172,84 @@ public class DashboardService {
                 preparationItems,
                 importantNotifications
         );
+    }
+
+    private List<DashboardNotificationResponse> getImportantNotifications(Long userId, Instant now) {
+        List<Notification> candidates = notificationRepository.findDashboardImportantNotifications(
+                userId,
+                IMPORTANT_NOTIFICATION_TYPES,
+                PageRequest.of(0, IMPORTANT_NOTIFICATION_CANDIDATE_LIMIT)
+        );
+
+        Set<Long> activeApplicationIds = getActiveApplicationIds(userId, now, candidates);
+        Set<Long> activeEventIds = getActiveEventIds(userId, now, candidates);
+
+        return candidates.stream()
+                .filter(notification -> isActiveDashboardNotification(notification, activeApplicationIds, activeEventIds))
+                .limit(IMPORTANT_NOTIFICATION_LIMIT)
+                .map(DashboardNotificationResponse::from)
+                .toList();
+    }
+
+    private Set<Long> getActiveApplicationIds(Long userId, Instant now, List<Notification> notifications) {
+        List<Long> applicationIds = notifications.stream()
+                .filter(notification -> notification.getType() == NotificationType.APPLICATION_DEADLINE)
+                .filter(notification -> APPLICATION_RESOURCE_TYPE.equals(notification.getRelatedResourceType()))
+                .map(Notification::getRelatedResourceId)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+
+        if (applicationIds.isEmpty()) {
+            return Set.of();
+        }
+
+        return new HashSet<>(applicationRepository.findActiveDashboardDeadlineApplicationIds(
+                userId,
+                applicationIds,
+                now,
+                FINISHED_STATUSES
+        ));
+    }
+
+    private Set<Long> getActiveEventIds(Long userId, Instant now, List<Notification> notifications) {
+        List<Long> eventIds = notifications.stream()
+                .filter(notification -> isCalendarEventNotificationType(notification.getType()))
+                .filter(notification -> CALENDAR_EVENT_RESOURCE_TYPE.equals(notification.getRelatedResourceType()))
+                .map(Notification::getRelatedResourceId)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+
+        if (eventIds.isEmpty()) {
+            return Set.of();
+        }
+
+        return new HashSet<>(eventRepository.findActiveDashboardEventIds(userId, eventIds, now));
+    }
+
+    private boolean isActiveDashboardNotification(
+            Notification notification,
+            Set<Long> activeApplicationIds,
+            Set<Long> activeEventIds
+    ) {
+        if (notification.getType() == NotificationType.APPLICATION_DEADLINE
+                && APPLICATION_RESOURCE_TYPE.equals(notification.getRelatedResourceType())) {
+            return activeApplicationIds.contains(notification.getRelatedResourceId());
+        }
+
+        if (isCalendarEventNotificationType(notification.getType())
+                && CALENDAR_EVENT_RESOURCE_TYPE.equals(notification.getRelatedResourceType())) {
+            return activeEventIds.contains(notification.getRelatedResourceId());
+        }
+
+        return true;
+    }
+
+    private boolean isCalendarEventNotificationType(NotificationType type) {
+        return type == NotificationType.INTERVIEW
+                || type == NotificationType.CODING_TEST
+                || type == NotificationType.CALENDAR_EVENT;
     }
 
     private DashboardGoogleCalendarResponse getGoogleCalendarStatus(Long userId) {

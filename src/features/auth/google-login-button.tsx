@@ -24,7 +24,7 @@ export function GoogleLoginButton() {
     <div className="grid gap-2">
       <Button
         aria-label="Google 계정으로 시작하기"
-        className="w-full"
+        className="h-11 w-full border-neutral-200/90 bg-white/95 shadow-[0_1px_2px_rgba(31,29,26,0.08)] hover:border-neutral-400 hover:bg-white"
         disabled={disabled}
         leadingIcon={<GoogleLogo />}
         loading={loading}

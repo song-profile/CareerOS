@@ -5,31 +5,35 @@ const summaryItems = [
   {
     key: "weeklyDeadlineCount",
     label: "이번 주 마감",
+    description: "마감일이 7일 안에 있는 지원",
     unit: "건",
   },
   {
     key: "upcomingEventCount",
     label: "다가오는 일정",
+    description: "면접, 테스트, 개인 일정",
     unit: "개",
   },
   {
     key: "draftingApplicationCount",
     label: "작성 중인 지원서",
+    description: "아직 제출 전인 지원",
     unit: "건",
   },
 ] as const;
 
 interface DashboardSummaryProps {
+  displayName: string;
   summary: DashboardSummaryType;
 }
 
-export function DashboardSummary({ summary }: DashboardSummaryProps) {
+export function DashboardSummary({ displayName, summary }: DashboardSummaryProps) {
   return (
     <section className="grid gap-4" aria-labelledby="dashboard-summary-title">
       <div className="grid gap-2">
         <p className="text-caption text-primary-600">오늘의 요약</p>
         <h1 className="text-h1 text-neutral-900" id="dashboard-summary-title">
-          안녕하세요, 사용자님
+          안녕하세요, {displayName}님
         </h1>
         <p className="text-body text-neutral-600">
           임박한 마감과 일정, 준비가 필요한 자료를 먼저 확인하세요.
@@ -39,9 +43,12 @@ export function DashboardSummary({ summary }: DashboardSummaryProps) {
       <div className="grid gap-3 md:grid-cols-3">
         {summaryItems.map((item) => (
           <Card key={item.key}>
-            <CardContent>
-              <div className="grid gap-2">
-                <p className="text-caption text-neutral-600">{item.label}</p>
+            <CardContent className="p-4">
+              <div className="grid min-h-[104px] content-between gap-3">
+                <div className="grid gap-1">
+                  <p className="text-caption text-neutral-600">{item.label}</p>
+                  <p className="text-caption text-neutral-400">{item.description}</p>
+                </div>
                 <p className="text-display text-neutral-900">
                   {summary[item.key]}
                   <span className="ml-1 text-body-medium text-neutral-600">{item.unit}</span>

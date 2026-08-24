@@ -195,6 +195,73 @@ class DashboardControllerTest {
     }
 
     @Test
+    void excludesEndedEventsAndExpiredDeadlinesFromImportantNotifications() throws Exception {
+        Application expiredApplication = saveApplication(
+                owner,
+                "지난마감",
+                "백엔드",
+                now.minusSeconds(days(1)),
+                ApplicationStatus.WRITING
+        );
+        RecruitmentEvent endedEvent = saveEvent(owner, expiredApplication, "지난 면접", now.minusSeconds(days(1)));
+        notificationRepository.save(Notification.create(
+                owner,
+                NotificationType.INTERVIEW,
+                "면접 오늘",
+                "지난 면접 일정이 오늘입니다.",
+                "/calendar/" + endedEvent.getId(),
+                "CALENDAR_EVENT",
+                endedEvent.getId(),
+                "ended-event-" + endedEvent.getId()
+        ));
+        notificationRepository.save(Notification.create(
+                owner,
+                NotificationType.APPLICATION_DEADLINE,
+                "지원 마감 오늘",
+                "지난마감 백엔드 지원 마감이 오늘입니다.",
+                "/applications/" + expiredApplication.getId(),
+                "APPLICATION",
+                expiredApplication.getId(),
+                "expired-deadline-" + expiredApplication.getId()
+        ));
+
+        Application activeApplication = saveApplication(
+                owner,
+                "예정마감",
+                "프론트엔드",
+                now.plusSeconds(days(1)),
+                ApplicationStatus.WRITING
+        );
+        RecruitmentEvent activeEvent = saveEvent(owner, activeApplication, "예정 면접", now.plusSeconds(days(1)));
+        notificationRepository.save(Notification.create(
+                owner,
+                NotificationType.INTERVIEW,
+                "면접 D-1",
+                "예정 면접 일정이 D-1입니다.",
+                "/calendar/" + activeEvent.getId(),
+                "CALENDAR_EVENT",
+                activeEvent.getId(),
+                "active-event-" + activeEvent.getId()
+        ));
+        notificationRepository.save(Notification.create(
+                owner,
+                NotificationType.APPLICATION_DEADLINE,
+                "지원 마감 D-1",
+                "예정마감 프론트엔드 지원 마감이 D-1입니다.",
+                "/applications/" + activeApplication.getId(),
+                "APPLICATION",
+                activeApplication.getId(),
+                "active-deadline-" + activeApplication.getId()
+        ));
+
+        mockMvc.perform(get("/api/dashboard/summary").with(authentication(auth(owner))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.importantNotifications.length()").value(2))
+                .andExpect(jsonPath("$.importantNotifications[0].title").value("지원 마감 D-1"))
+                .andExpect(jsonPath("$.importantNotifications[1].title").value("면접 D-1"));
+    }
+
+    @Test
     void calculatesWeeklyDeadlinesAndExcludesNullPastAndFinishedStatuses() throws Exception {
         saveApplication(owner, "이번주1", "백엔드", now.plusSeconds(days(1)), ApplicationStatus.WRITING);
         saveApplication(owner, "이번주2", "프론트엔드", now.plusSeconds(days(7)), ApplicationStatus.SUBMITTED);

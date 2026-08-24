@@ -76,28 +76,53 @@ export function ApplicationList({ applications, searchState }: ApplicationListPr
       ) : null}
 
       <Card>
-        <CardContent>
+        <CardContent className="p-4 sm:p-4">
           <form className="grid gap-4" onSubmit={handleSearchSubmit}>
-            <div className="grid gap-4 lg:grid-cols-[minmax(240px,1fr)_auto] lg:items-end">
-              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <div className="grid gap-3 xl:grid-cols-[minmax(260px,520px)_88px_minmax(0,1fr)] xl:items-start">
+              <div className="grid gap-1.5">
                 <Input
-                  helperText="회사명, 직무명, 메모를 서버 API에서 검색합니다."
                   label="검색"
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="회사명, 직무명"
+                  placeholder="회사명, 직무명, 메모"
                   type="search"
                   value={searchQuery}
                 />
-                <Button className="w-full sm:w-auto" loading={isPending} type="submit" variant="secondary">
-                  검색
-                </Button>
+                <p className="text-caption text-neutral-600">회사명, 직무명, 메모에서 찾습니다.</p>
               </div>
-              <div className="grid gap-1.5">
-                <p className="text-body-medium text-neutral-900">정렬</p>
+              <Button className="w-full xl:mt-[26px] xl:w-[88px]" loading={isPending} type="submit" variant="secondary">
+                검색
+              </Button>
+              <p className="hidden self-end justify-self-end pb-2 text-caption text-neutral-600 xl:block">
+                총 <strong className="text-neutral-900">{visibleApplications.length}건</strong>
+                {isPending ? " · 새 조건을 불러오는 중" : ""}
+              </p>
+            </div>
+
+            <div className="grid gap-4 border-t border-neutral-200/70 pt-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+              <div className="grid gap-2">
+                <p className="text-body-medium text-neutral-900">상태 필터</p>
                 <div className="flex flex-wrap gap-2">
+                  {APPLICATION_STATUS_FILTERS.map((filter) => (
+                    <Button
+                      aria-pressed={statusFilter === filter}
+                      key={filter}
+                      onClick={() => handleStatusChange(filter)}
+                      size="sm"
+                      variant={statusFilter === filter ? "primary" : "secondary"}
+                    >
+                      {filter}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2 xl:min-w-[216px]">
+                <p className="text-body-medium text-neutral-900">정렬</p>
+                <div className="grid grid-cols-2 gap-2">
                   {APPLICATION_SORT_OPTIONS.map((option) => (
                     <Button
                       aria-pressed={sortKey === option.value}
+                      className="w-full"
                       key={option.value}
                       onClick={() => handleSortChange(option.value)}
                       size="sm"
@@ -110,24 +135,7 @@ export function ApplicationList({ applications, searchState }: ApplicationListPr
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <p className="text-body-medium text-neutral-900">상태 필터</p>
-              <div className="flex flex-wrap gap-2">
-                {APPLICATION_STATUS_FILTERS.map((filter) => (
-                  <Button
-                    aria-pressed={statusFilter === filter}
-                    key={filter}
-                    onClick={() => handleStatusChange(filter)}
-                    size="sm"
-                    variant={statusFilter === filter ? "primary" : "secondary"}
-                  >
-                    {filter}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <p className="text-caption text-neutral-600">
+            <p className="text-caption text-neutral-600 sm:hidden">
               총 {visibleApplications.length}건의 지원 건을 표시합니다.
               {isPending ? " 새 조건을 불러오는 중입니다." : ""}
             </p>

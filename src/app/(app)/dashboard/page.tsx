@@ -14,6 +14,7 @@ import { getCurrentUserFromSession } from "@/features/auth/api/server-auth";
 import { CALENDAR_EVENT_TYPE_LABEL } from "@/features/calendar/constants";
 import { getDashboardSummary } from "@/features/dashboard/dashboard-service";
 import { getDDayLabel } from "@/features/dashboard/date-utils";
+import { getUserProfileForCurrentUser } from "@/features/materials/api/server-materials-api";
 import type {
   DashboardData,
   DashboardImportantNotification,
@@ -23,11 +24,15 @@ import type {
 import { getNotificationTypeLabel } from "@/features/notifications/notification-utils";
 
 export default async function DashboardPage() {
-  const [authState, dashboardResult] = await Promise.all([
+  const [authState, dashboardResult, profileResult] = await Promise.all([
     getCurrentUserFromSession(),
     getDashboardSummary(),
+    getUserProfileForCurrentUser(),
   ]);
-  const currentUserName = authState.status === "authenticated" ? authState.user.name : "사용자";
+  const currentUserName = resolveDisplayName(
+    profileResult.ok ? profileResult.value.name : undefined,
+    authState.status === "authenticated" ? authState.user.name : undefined,
+  );
 
   return (
     <>
@@ -45,7 +50,7 @@ export default async function DashboardPage() {
       />
 
       {dashboardResult.ok ? (
-        <DashboardContent dashboardData={dashboardResult.value} />
+        <DashboardContent dashboardData={dashboardResult.value} displayName={currentUserName} />
       ) : (
         <DashboardErrorState
           description={dashboardResult.message}
@@ -56,7 +61,13 @@ export default async function DashboardPage() {
   );
 }
 
-function DashboardContent({ dashboardData }: { dashboardData: DashboardData }) {
+function DashboardContent({
+  dashboardData,
+  displayName,
+}: {
+  dashboardData: DashboardData;
+  displayName: string;
+}) {
   const hasNoData =
     dashboardData.summary.weeklyDeadlineCount === 0 &&
     dashboardData.summary.upcomingEventCount === 0 &&
@@ -67,7 +78,7 @@ function DashboardContent({ dashboardData }: { dashboardData: DashboardData }) {
 
   return (
     <>
-      <DashboardSummary summary={dashboardData.summary} />
+      <DashboardSummary displayName={displayName} summary={dashboardData.summary} />
       {hasNoData ? <DashboardOnboardingEmptyState /> : null}
 
       <TodayEvents events={dashboardData.todayEvents} />
@@ -98,6 +109,16 @@ function DashboardContent({ dashboardData }: { dashboardData: DashboardData }) {
       <UpcomingEvents events={dashboardData.upcomingEvents} />
     </>
   );
+}
+
+function resolveDisplayName(profileName?: string, authName?: string): string {
+  const normalizedProfileName = profileName?.trim();
+  if (normalizedProfileName) {
+    return normalizedProfileName;
+  }
+
+  const normalizedAuthName = authName?.trim();
+  return normalizedAuthName || "사용자";
 }
 
 function DashboardOnboardingEmptyState() {
@@ -246,13 +267,13 @@ function QuickActions() {
   ];
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+    <nav aria-label="빠른 작업" className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
       {actions.map((action, index) => (
         <LinkButton href={action.href} key={action.href} variant={index === 0 ? "primary" : "secondary"}>
           {action.label}
         </LinkButton>
       ))}
-    </div>
+    </nav>
   );
 }
 

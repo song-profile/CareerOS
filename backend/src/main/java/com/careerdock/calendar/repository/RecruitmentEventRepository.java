@@ -86,4 +86,13 @@ public interface RecruitmentEventRepository
             order by e.startAt asc, e.id asc
             """)
     List<RecruitmentEvent> findNotificationStartTargets(Instant from, Instant to);
+
+    @Query("""
+            select e.id
+            from RecruitmentEvent e
+            where e.user.id = :userId
+              and e.id in :eventIds
+              and e.endAt >= :from
+            """)
+    List<Long> findActiveDashboardEventIds(Long userId, List<Long> eventIds, Instant from);
 }

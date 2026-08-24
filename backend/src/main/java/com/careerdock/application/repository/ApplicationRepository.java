@@ -79,4 +79,19 @@ public interface ApplicationRepository extends JpaRepository<Application, Long>,
             Instant to,
             List<ApplicationStatus> excludedStatuses
     );
+
+    @Query("""
+            select a.id
+            from Application a
+            where a.user.id = :userId
+              and a.id in :applicationIds
+              and a.deadlineAt >= :from
+              and a.status not in :excludedStatuses
+            """)
+    List<Long> findActiveDashboardDeadlineApplicationIds(
+            Long userId,
+            List<Long> applicationIds,
+            Instant from,
+            List<ApplicationStatus> excludedStatuses
+    );
 }

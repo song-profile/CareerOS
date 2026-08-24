@@ -6,10 +6,10 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "lg";
 
 const variantClassName: Record<ButtonVariant, string> = {
-  primary: "bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-500",
+  primary: "bg-neutral-900 text-white shadow-[0_1px_2px_rgba(31,29,26,0.16)] hover:bg-primary-700 focus-visible:ring-primary-500",
   secondary:
-    "border border-neutral-200 bg-neutral-0 text-neutral-900 hover:bg-neutral-100 focus-visible:ring-primary-500",
-  ghost: "bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 focus-visible:ring-primary-500",
+    "border border-neutral-200 bg-white/90 text-neutral-900 hover:border-neutral-400 hover:bg-white focus-visible:ring-primary-500",
+  ghost: "bg-transparent text-neutral-600 hover:bg-neutral-100/80 hover:text-neutral-900 focus-visible:ring-primary-500",
   danger: "bg-danger-600 text-white hover:bg-danger-700 focus-visible:ring-danger-600",
 };
 

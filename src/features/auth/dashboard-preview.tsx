@@ -16,8 +16,8 @@ const previewDeadlines = [
 export function DashboardPreview() {
   return (
     <div aria-hidden="true" className="pointer-events-none select-none px-6 py-8 lg:px-10 lg:py-10">
-      <div className="mx-auto grid w-full max-w-7xl gap-8">
-        <header className="grid gap-2">
+      <div className="mx-auto grid w-full max-w-7xl gap-7">
+        <header className="grid gap-2 border-b border-neutral-200/70 pb-6">
           <h1 className="text-h1 text-neutral-900">대시보드</h1>
           <p className="max-w-3xl text-body text-neutral-600">
             마감, 일정, 작성 중인 지원서를 빠르게 확인하세요.
@@ -26,7 +26,7 @@ export function DashboardPreview() {
 
         <div className="grid gap-3 md:grid-cols-3">
           {summaryItems.map((item) => (
-            <Card key={item.label}>
+            <Card className="bg-white/78" key={item.label}>
               <CardContent>
                 <div className="grid gap-2">
                   <p className="text-caption text-neutral-600">{item.label}</p>
@@ -42,7 +42,7 @@ export function DashboardPreview() {
 
         <div className="grid gap-4 xl:grid-cols-3">
           {previewDeadlines.map((deadline) => (
-            <Card key={deadline.company}>
+            <Card className="bg-white/78" key={deadline.company}>
               <CardContent>
                 <div className="grid gap-3">
                   <div className="flex items-center justify-between gap-2">

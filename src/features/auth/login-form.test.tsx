@@ -12,7 +12,9 @@ describe("LoginForm", () => {
     render(<LoginForm />);
 
     expect(screen.getByRole("button", { name: "Google 계정으로 시작하기" })).toBeEnabled();
-    expect(screen.getByText("처음 로그인하면 CareerDock 계정이 자동으로 생성됩니다.")).toBeInTheDocument();
+    expect(
+      screen.queryByText("처음 시작해도 바로 쓸 수 있도록 Google 계정으로 워크스페이스를 만듭니다."),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("CareerDock은 Google 계정으로만 로그인합니다.")).toBeInTheDocument();
     expect(screen.queryByLabelText("이메일")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("비밀번호")).not.toBeInTheDocument();
@@ -20,11 +22,11 @@ describe("LoginForm", () => {
     expect(screen.queryByText("비밀번호 찾기는 준비 중입니다.")).not.toBeInTheDocument();
   });
 
-  it("shows logout and auth error messages without adding fake email login", () => {
-    render(<LoginForm initialMessage="로그아웃되었습니다." initialServerError="로그인이 필요합니다." />);
+  it("shows auth error message without adding fake email login", () => {
+    render(<LoginForm initialServerError="로그인이 필요합니다." />);
 
-    expect(screen.getByText("로그아웃되었습니다.")).toBeInTheDocument();
     expect(screen.getByText("로그인이 필요합니다.")).toBeInTheDocument();
+    expect(screen.queryByText("로그아웃되었습니다.")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("이메일")).not.toBeInTheDocument();
   });
 });

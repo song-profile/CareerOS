@@ -91,18 +91,22 @@ export function EssayLibrary({ items }: EssayLibraryProps) {
   return (
     <div className="grid gap-6">
       <Card>
-        <CardContent>
+        <CardContent className="p-4 sm:p-4">
           <div className="grid gap-4">
-            <div className="grid gap-4 lg:grid-cols-[minmax(280px,1fr)_240px] lg:items-end">
-              <Input
-                helperText="회사, 직무, 문항, 답변 내용, 태그에서 찾습니다."
-                label="자소서 검색"
-                onChange={(event) => handleQueryChange(event.target.value)}
-                placeholder="예: 은행, 문제 해결, LOODI"
-                type="search"
-                value={queryInput}
-              />
+            <div className="grid gap-3 xl:grid-cols-[minmax(260px,520px)_minmax(0,1fr)_220px] xl:items-start">
+              <div className="grid gap-1.5">
+                <Input
+                  label="자소서 검색"
+                  onChange={(event) => handleQueryChange(event.target.value)}
+                  placeholder="예: 은행, 문제 해결, LOODI"
+                  type="search"
+                  value={queryInput}
+                />
+                <p className="text-caption text-neutral-600">회사, 직무, 문항, 답변 내용, 태그에서 찾습니다.</p>
+              </div>
+              <div className="hidden xl:block" />
               <Select
+                className="h-10"
                 label="정렬"
                 onChange={(event) => applyFilters({ ...filters, sort: event.target.value as EssaySortOption })}
                 options={ESSAY_SORT_OPTIONS}
@@ -122,7 +126,7 @@ export function EssayLibrary({ items }: EssayLibraryProps) {
             </Button>
 
             <div
-              className={cn("lg:block", mobileFiltersOpen ? "block" : "hidden")}
+              className={cn("border-t border-neutral-200/70 pt-4 lg:block", mobileFiltersOpen ? "block" : "hidden")}
               id="essay-filter-panel"
             >
               <EssayFilterPanel facets={facets} filters={filters} onToggle={handleToggle} />

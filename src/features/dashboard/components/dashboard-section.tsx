@@ -24,8 +24,8 @@ export function DashboardSection({ children, description, title }: DashboardSect
   const sectionTitleId = `dashboard-section-${title.replace(/\s+/g, "-")}`;
 
   return (
-    <section className="grid gap-4" aria-labelledby={sectionTitleId}>
-      <div className="grid gap-1">
+    <section className="grid gap-3.5" aria-labelledby={sectionTitleId}>
+      <div className="grid gap-1 border-b border-neutral-200/70 pb-3">
         <h2 className="text-h2 text-neutral-900" id={sectionTitleId}>
           {title}
         </h2>
